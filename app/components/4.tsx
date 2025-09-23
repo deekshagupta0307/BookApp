@@ -47,7 +47,6 @@ export default function Signup4() {
         </View>
       </View>
 
-      {/* Previous arrow */}
       <View className="items-center mb-10">
         <View
           className="w-20 h-20 rounded-full border-2 items-center justify-center"

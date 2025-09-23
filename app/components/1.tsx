@@ -8,19 +8,16 @@ export default function Signup1() {
   const router = useRouter();
 
   return (
-    <View className="flex-1 bg-[#FFFBF2]">
-      {/* Progress bar at the top */}
+    <View className="flex-1 bg-[#FFFBF2] p-6">
       <ProgressBar step={1} totalSteps={4} />
 
       <View className="flex-1 justify-center items-center px-0">
-        {/* Image */}
         <Image
           source={require("../../assets/images/signup/monkey1.png")}
           className="w-72 h-72 mb-8"
           resizeMode="contain"
         />
 
-        {/* Heading */}
         <Text
           className="text-4xl font-semibold text-[#722F37] mb-6 text-center"
           style={{ lineHeight: 42 }}
@@ -28,7 +25,6 @@ export default function Signup1() {
           Which book are you reading?
         </Text>
 
-        {/* Input */}
         <TextInput
           value={answer}
           onChangeText={setAnswer}
@@ -37,15 +33,13 @@ export default function Signup1() {
         />
       </View>
 
-      {/* Bottom arrows */}
       <View className="flex-row justify-between w-full mb-10">
-        {/* Previous */}
         <View
           className="w-20 h-20 rounded-full border-2 items-center justify-center"
           style={{ borderColor: "#EFDFBB" }}
         >
           <TouchableOpacity
-            onPress={() => router.push("/(auth)/signin")}
+            onPress={() => router.push("/components/buddy-page")}
             className="w-14 h-14 rounded-full items-center justify-center"
             style={{ backgroundColor: "#EFDFBB" }}
           >
@@ -53,7 +47,6 @@ export default function Signup1() {
           </TouchableOpacity>
         </View>
 
-        {/* Next */}
         <View
           className="w-20 h-20 rounded-full border-2 items-center justify-center"
           style={{ borderColor: "#722F37" }}

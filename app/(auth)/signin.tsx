@@ -15,7 +15,7 @@ export default function SignUp() {
 
   const handleSignUp = () => {
     Alert.alert("Success", "Signed Up Successfully!");
-    router.replace("/components/1");
+    router.replace("/components/hello-page");
   };
 
   return (

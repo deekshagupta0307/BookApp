@@ -4,9 +4,14 @@ import { useEffect, useRef } from "react";
 interface ProgressBarProps {
   step: number;
   totalSteps: number;
+  marginTop?: number; // optional prop for top margin
 }
 
-export default function ProgressBar({ step, totalSteps }: ProgressBarProps) {
+export default function ProgressBar({
+  step,
+  totalSteps,
+  marginTop = 20, // default margin from top
+}: ProgressBarProps) {
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -22,9 +27,9 @@ export default function ProgressBar({ step, totalSteps }: ProgressBarProps) {
     <View
       style={{
         height: 10,
-        width: "100%",
+        width: "100%",       
         backgroundColor: "#E0E0E0",
-        marginTop: 20,
+        marginTop: marginTop, 
       }}
     >
       <Animated.View

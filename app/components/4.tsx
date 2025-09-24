@@ -26,7 +26,7 @@ export default function Signup4() {
 
         <View className="w-full gap-4">
           <TouchableOpacity
-            onPress={() => router.push("/(tabs)/home")}
+            onPress={() => router.push("/components/everyday-pages")}
             className="w-full h-14 rounded-lg items-center justify-center"
             style={{ backgroundColor: "#722F37" }}
           >
@@ -36,7 +36,7 @@ export default function Signup4() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => router.push("/(tabs)/home")}
+            onPress={() => router.push("/components/weekly-pages")}
             className="w-full h-14 rounded-lg items-center justify-center border"
             style={{ borderColor: "#722F37", backgroundColor: "transparent" }}
           >

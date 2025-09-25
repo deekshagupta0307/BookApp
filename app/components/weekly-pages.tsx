@@ -11,35 +11,46 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import ProgressBar from "./progress-bar";
+import { useSignupStore } from "../store/signup-store";
 
 export default function WeeklyPages() {
   const router = useRouter();
-
-  // Each weekday has its own counter
   const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const initialCounters = weekdays.reduce((acc, day) => {
-    acc[day] = "";
-    return acc;
-  }, {} as Record<string, string>);
-
-  const [counters, setCounters] = useState(initialCounters);
+  const weeklyPages = useSignupStore((s) => s.weeklyPages);
+  const setWeeklyPages = useSignupStore((s) => s.setWeeklyPages);
+  const [error, setError] = useState("");
 
   const increment = (day: string) => {
-    let num = parseInt(counters[day]) || 0;
+    let num = parseInt(weeklyPages[day]) || 0;
     if (num < 99) num += 1;
-    setCounters({ ...counters, [day]: num.toString() });
+    setWeeklyPages(day, num.toString());
+    setError("");
   };
 
   const decrement = (day: string) => {
-    let num = parseInt(counters[day]) || 0;
+    let num = parseInt(weeklyPages[day]) || 0;
     if (num > 0) num -= 1;
-    setCounters({ ...counters, [day]: num.toString() });
+    setWeeklyPages(day, num.toString());
+    setError("");
   };
 
   const handleChange = (day: string, text: string) => {
     let num = text.replace(/[^0-9]/g, "");
     if (num.length > 2) num = num.slice(0, 2);
-    setCounters({ ...counters, [day]: num });
+    setWeeklyPages(day, num);
+    setError("");
+  };
+
+  const handleSubmit = () => {
+    const hasAnyValue = Object.values(weeklyPages).some(
+      (v) => v && parseInt(v) > 0
+    );
+    if (!hasAnyValue) {
+      setError("Please enter at least one day’s reading plan.");
+      return;
+    }
+    setError("");
+    router.push("/components/success-signup");
   };
 
   return (
@@ -54,30 +65,23 @@ export default function WeeklyPages() {
             padding: 24,
             justifyContent: "space-between",
           }}
-          style={{ backgroundColor: "#FFFBF2" }}
           keyboardShouldPersistTaps="handled"
         >
           <ProgressBar step={4} totalSteps={4} />
 
-          <Text
-            className="text-4xl font-semibold text-[#722F37] mb-6 text-center"
-            style={{ lineHeight: 42 }}
-          >
+          <Text className="text-4xl font-semibold text-[#722F37] mb-6 text-center">
             Custom Weekly Schedule
           </Text>
 
           <View className="flex-col gap-4">
             {weekdays.map((day) => (
-              <View
-                key={day}
-                className="flex-row items-center justify-between"
-              >
-                <TouchableOpacity
+              <View key={day} className="flex-row items-center justify-between">
+                <View
                   className="w-28 h-12 rounded-md items-center justify-center"
                   style={{ backgroundColor: "#EFDFBB" }}
                 >
                   <Text className="text-[#722F37] font-semibold">{day}</Text>
-                </TouchableOpacity>
+                </View>
 
                 <View className="flex-row items-center">
                   <TouchableOpacity
@@ -89,7 +93,7 @@ export default function WeeklyPages() {
                   </TouchableOpacity>
 
                   <TextInput
-                    value={counters[day]}
+                    value={weeklyPages[day] || ""}
                     onChangeText={(text) => handleChange(day, text)}
                     keyboardType="numeric"
                     placeholder="00"
@@ -108,6 +112,12 @@ export default function WeeklyPages() {
               </View>
             ))}
           </View>
+
+          {error ? (
+            <Text className="text-red-500 text-sm mt-4 text-center">
+              {error}
+            </Text>
+          ) : null}
 
           <View className="flex-row justify-between w-full mt-10 px-4 mb-10">
             <View
@@ -130,7 +140,7 @@ export default function WeeklyPages() {
               style={{ borderColor: "#722F37" }}
             >
               <TouchableOpacity
-                onPress={() => router.push("/components/success-signup")}
+                onPress={handleSubmit}
                 className="w-14 h-14 rounded-full items-center justify-center"
                 style={{ backgroundColor: "#722F37" }}
               >

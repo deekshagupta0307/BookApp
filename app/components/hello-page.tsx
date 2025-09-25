@@ -1,12 +1,13 @@
 import { View, Text, TouchableOpacity, Image } from "react-native";
 import { useRouter } from "expo-router";
+import { useUserStore } from "../store/user-store"; 
 
 export default function HelloPage() {
   const router = useRouter();
+  const firstName = useUserStore((s) => s.firstName); 
 
   return (
     <View className="flex-1 bg-[#FFFBF2] p-6">
-
       <View className="flex-1 items-center justify-center">
         <Image
           source={require("../../assets/images/signup/monkey3.png")}
@@ -18,7 +19,7 @@ export default function HelloPage() {
           className="text-4xl font-semibold text-[#722F37] mb-2 text-center"
           style={{ lineHeight: 42 }}
         >
-          Hello Himanshu!
+          Hello {firstName || "Friend"}!
         </Text>
 
         <Text

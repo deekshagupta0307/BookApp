@@ -1,11 +1,13 @@
 import { View, Text, Image, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useUserStore } from "../store/user-store";
 
 export default function Home() {
+  const firstName = useUserStore((s) => s.firstName);
+
   return (
     <SafeAreaView className="flex-1 bg-[#FDF6E7]">
-      <ScrollView contentContainerClassName="pb-10">
-        {/* Top bar with logo & profile */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <View className="flex-row justify-between items-center px-6 mt-4">
           <Image
             source={require("../../assets/images/home/logo.png")}
@@ -19,27 +21,23 @@ export default function Home() {
           />
         </View>
 
-        {/* Heading + Paragraph */}
         <View className="px-6 mt-6">
           <Text className="text-2xl font-bold text-[#722F37]">
-            Hello, Sachin
+            Hello, {firstName || "Friend"}
           </Text>
           <Text className="text-base text-gray-700 mt-2">
             Have you been reading lately?
           </Text>
         </View>
 
-        {/* Main Card */}
         <View className="bg-white rounded-2xl shadow-md mx-6 mt-8 p-6">
-          {/* Card Heading */}
           <Text className="text-xl font-semibold text-[#722F37] text-center">
             Book Name
           </Text>
           <Text className="text-base text-gray-600 text-center mt-2">
-           Author Name
+            Author Name
           </Text>
 
-          {/* Progress Bar */}
           <View className="mt-6">
             <View className="flex-row justify-between mb-2">
               <Text className="text-sm text-gray-600">Progress</Text>
@@ -50,13 +48,11 @@ export default function Home() {
             </View>
           </View>
 
-          {/* List Items */}
           <View className="mt-6 space-y-2">
             <Text className="text-base text-gray-700">• Read 20 pages today</Text>
             <Text className="text-base text-gray-700">• Complete weekly goal</Text>
           </View>
 
-          {/* Weekday Toggle Section */}
           <View className="mt-10">
             <Text className="text-xl font-semibold text-[#722F37] mb-4">
               Weekly Plan
@@ -80,21 +76,16 @@ export default function Home() {
             </View>
           </View>
 
-          {/* Bottom Section */}
           <View className="mt-10">
             <Text className="text-base text-gray-700 text-center mb-4">
               Stay consistent to achieve your reading goals!
             </Text>
             <View className="flex-row justify-between mt-4">
               <TouchableOpacity className="flex-1 bg-[#EFDFBB] py-3 rounded-xl mr-3">
-                <Text className="text-center text-[#722F37] font-semibold">
-                  Skip
-                </Text>
+                <Text className="text-center text-[#722F37] font-semibold">Skip</Text>
               </TouchableOpacity>
               <TouchableOpacity className="flex-1 bg-[#722F37] py-3 rounded-xl ml-3">
-                <Text className="text-center text-white font-semibold">
-                  Continue
-                </Text>
+                <Text className="text-center text-white font-semibold">Continue</Text>
               </TouchableOpacity>
             </View>
           </View>

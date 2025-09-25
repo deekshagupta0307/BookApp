@@ -12,27 +12,45 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import ProgressBar from "./progress-bar";
+import { useSignupStore } from "../store/signup-store";
 
 export default function EverydayPages() {
-  const [pages, setPages] = useState("");
   const router = useRouter();
 
+  // ✅ get value & setter from store
+  const everydayPages = useSignupStore((s) => s.everydayPages);
+  const setEverydayPages = useSignupStore((s) => s.setEverydayPages);
+
+  const [error, setError] = useState("");
+
   const increment = () => {
-    let num = parseInt(pages) || 0;
+    let num = parseInt(everydayPages) || 0;
     if (num < 99) num += 1;
-    setPages(num.toString());
+    setEverydayPages(num.toString());
+    setError("");
   };
 
   const decrement = () => {
-    let num = parseInt(pages) || 0;
+    let num = parseInt(everydayPages) || 0;
     if (num > 0) num -= 1;
-    setPages(num.toString());
+    setEverydayPages(num.toString());
+    setError("");
   };
 
   const handleChange = (text: string) => {
     let num = text.replace(/[^0-9]/g, "");
     if (num.length > 2) num = num.slice(0, 2);
-    setPages(num);
+    setEverydayPages(num);
+    setError("");
+  };
+
+  const handleSubmit = () => {
+    if (!everydayPages.trim() || parseInt(everydayPages) <= 0) {
+      setError("Please enter how many pages you can read every day.");
+      return;
+    }
+    setError("");
+    router.push("./success-signup");
   };
 
   return (
@@ -45,15 +63,12 @@ export default function EverydayPages() {
           contentContainerStyle={{
             flexGrow: 1,
             justifyContent: "space-between",
-            padding: 24,
+            padding: 10,
           }}
-          style={{ backgroundColor: "#FFFBF2" }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Top content */}
           <View className="items-center">
-            {/* Full progress since this is the last page */}
-            <ProgressBar step={4} totalSteps={4} />
+            <ProgressBar step={3} totalSteps={4} />
 
             <Image
               source={require("../../assets/images/signup/monkey2.png")}
@@ -61,14 +76,11 @@ export default function EverydayPages() {
               resizeMode="contain"
             />
 
-            <Text
-              className="text-4xl font-semibold text-[#722F37] mb-6 text-center"
-              style={{ lineHeight: 42 }}
-            >
+            <Text className="text-4xl font-semibold text-[#722F37] mb-6 text-center">
               How many pages you can read Everyday
             </Text>
 
-            <View className="flex-row items-center mb-6">
+            <View className="flex-row items-center mb-2">
               <TouchableOpacity
                 onPress={decrement}
                 className="w-14 h-14 rounded-md items-center justify-center mr-4"
@@ -78,7 +90,7 @@ export default function EverydayPages() {
               </TouchableOpacity>
 
               <TextInput
-                value={pages}
+                value={everydayPages}
                 onChangeText={handleChange}
                 keyboardType="numeric"
                 placeholder="Pages Everyday"
@@ -94,9 +106,14 @@ export default function EverydayPages() {
                 <Text className="text-2xl text-white font-bold">+</Text>
               </TouchableOpacity>
             </View>
+
+            {error ? (
+              <Text className="text-red-500 text-sm mb-4 text-center">
+                {error}
+              </Text>
+            ) : null}
           </View>
 
-          {/* Bottom Navigation Arrows */}
           <View className="flex-row justify-between w-full mb-10 px-4">
             <View
               className="w-20 h-20 rounded-full border-2 items-center justify-center"
@@ -118,11 +135,11 @@ export default function EverydayPages() {
               style={{ borderColor: "#722F37" }}
             >
               <TouchableOpacity
-                onPress={() => router.push("/components/success-signup")}
+                onPress={handleSubmit}
                 className="w-14 h-14 rounded-full items-center justify-center"
                 style={{ backgroundColor: "#722F37" }}
               >
-                <Text className="text-2xl text-white font-extrabold">✔</Text>
+                <Text className="text-2xl text-white font-extrabold">→</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -4,13 +4,13 @@ import { useEffect, useRef } from "react";
 interface ProgressBarProps {
   step: number;
   totalSteps: number;
-  marginTop?: number; // optional prop for top margin
+  marginTop?: number; 
 }
 
 export default function ProgressBar({
   step,
   totalSteps,
-  marginTop = 20, // default margin from top
+  marginTop = 20, 
 }: ProgressBarProps) {
   const progressAnim = useRef(new Animated.Value(0)).current;
 

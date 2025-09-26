@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   Linking,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -23,24 +22,39 @@ export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({ email: "", password: "" });
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: "YOUR_GOOGLE_CLIENT_ID", // Replace with your client ID
+    clientId: "YOUR_GOOGLE_CLIENT_ID",
   });
 
   const validateEmail = (email: string) => /\S+@\S+\.\S+/.test(email);
 
   const handleSignIn = () => {
-    if (!email.trim() || !validateEmail(email))
-      return Alert.alert("Error", "Please enter a valid email address.");
-    if (!password.trim()) return Alert.alert("Error", "Password is required.");
-    if (email !== storedEmail || password !== storedPassword)
-      return Alert.alert("Error", "Email or password is incorrect.");
+    setErrors({ email: "", password: "" });
+    let valid = true;
+    const newErrors = { email: "", password: "" };
+
+    if (!email.trim() || !validateEmail(email)) {
+      newErrors.email = "Please enter a valid email";
+      valid = false;
+    }
+    if (!password.trim()) {
+      newErrors.password = "Password is required";
+      valid = false;
+    }
+    if (valid && (email !== storedEmail || password !== storedPassword)) {
+      newErrors.email = "Email or password is incorrect";
+      newErrors.password = "Email or password is incorrect";
+      valid = false;
+    }
+
+    setErrors(newErrors);
+    if (!valid) return;
 
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      Alert.alert("Success", "Signed In Successfully!");
       router.replace("/components/hello-page");
     }, 1500);
   };
@@ -48,30 +62,22 @@ export default function SignIn() {
   const handleAppleSignIn = async () => {
     try {
       const available = await AppleAuthentication.isAvailableAsync();
-      if (!available) return Alert.alert("Apple Sign-In not supported");
-
-      const credential = await AppleAuthentication.signInAsync({
+      if (!available) return;
+      await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-
-      Alert.alert("Apple Sign-In Success");
       router.replace("/components/hello-page");
-    } catch (e: any) {
-      if (e.code !== "ERR_CANCELED") Alert.alert("Apple Sign-In failed", e.message);
-    }
+    } catch (e) {}
   };
 
   const handleGoogleSignIn = async () => {
     try {
       await promptAsync();
-      Alert.alert("Google Sign-In Success");
       router.replace("/components/hello-page");
-    } catch (e: any) {
-      Alert.alert("Google Sign-In failed", e.message);
-    }
+    } catch (e) {}
   };
 
   return (
@@ -94,15 +100,22 @@ export default function SignIn() {
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-        className="w-full h-12 border border-gray-300 rounded-lg px-3 bg-white mb-4"
+        className="w-full h-12 border border-gray-300 rounded-lg px-3 bg-white mb-2"
       />
+      {errors.email ? (
+        <Text className="text-red-600 text-sm mb-2">{errors.email}</Text>
+      ) : null}
+
       <TextInput
         placeholder="Password"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
-        className="w-full h-12 border border-gray-300 rounded-lg px-3 bg-white mb-2"
+        className="w-full h-12 border border-gray-300 rounded-lg px-3 bg-white mb-1"
       />
+      {errors.password ? (
+        <Text className="text-red-600 text-sm mb-2">{errors.password}</Text>
+      ) : null}
 
       <View className="w-full mb-6 items-end">
         <Text className="text-[#722F37] font-semibold text-sm">
@@ -164,7 +177,7 @@ export default function SignIn() {
         </TouchableOpacity>
       </View>
 
-      <View className="w-full py-4 items-center border-gray-200 mb-8">
+      <View className="w-full py-4 items-center border-gray-200 mt-14">
         <Text className="text-center text-black text-sm px-3 font-semibold">
           By continuing, you agree to our{" "}
           <Text

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   Linking,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -23,21 +22,40 @@ export default function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({
+    firstName: "",
+    email: "",
+    password: "",
+  });
 
   const validateEmail = (email: string) => /\S+@\S+\.\S+/.test(email);
 
   const handleSignUp = () => {
-    if (!firstName.trim()) return Alert.alert("Error", "First name is required.");
-    if (!email.trim() || !validateEmail(email))
-      return Alert.alert("Error", "Please enter a valid email address.");
-    if (!password.trim()) return Alert.alert("Error", "Password is required.");
+    setErrors({ firstName: "", email: "", password: "" });
+    let valid = true;
+    const newErrors = { firstName: "", email: "", password: "" };
+
+    if (!firstName.trim()) {
+      newErrors.firstName = "First name is required";
+      valid = false;
+    }
+    if (!email.trim() || !validateEmail(email)) {
+      newErrors.email = "Please enter a valid email";
+      valid = false;
+    }
+    if (!password.trim()) {
+      newErrors.password = "Password is required";
+      valid = false;
+    }
+
+    setErrors(newErrors);
+    if (!valid) return;
 
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
       setFirstName(firstName);
       setCredentials(email, password);
-      Alert.alert("Success", "Signed Up Successfully!");
       router.replace("/(auth)/signin");
     }, 2000);
   };
@@ -57,13 +75,19 @@ export default function SignUp() {
         Sign Up & Start Your Reading Journey
       </Text>
 
-      <View className="flex-row w-full mb-4">
-        <TextInput
-          placeholder="First Name"
-          value={firstName}
-          onChangeText={setFirstNameLocal}
-          className="flex-1 h-12 border border-gray-300 rounded-lg px-3 bg-white mr-2"
-        />
+      {/* First & Last Name */}
+      <View className="flex-row w-full mb-2">
+        <View className="flex-1 mr-2">
+          <TextInput
+            placeholder="First Name"
+            value={firstName}
+            onChangeText={setFirstNameLocal}
+            className="h-12 border border-gray-300 rounded-lg px-3 bg-white"
+          />
+          {errors.firstName ? (
+            <Text className="text-red-600 text-sm mt-1">{errors.firstName}</Text>
+          ) : null}
+        </View>
         <TextInput
           placeholder="Last Name"
           value={lastName}
@@ -72,20 +96,29 @@ export default function SignUp() {
         />
       </View>
 
+      {/* Email */}
       <TextInput
         placeholder="Email Address"
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-        className="w-full h-12 border border-gray-300 rounded-lg px-3 bg-white mb-4"
+        className="w-full h-12 border border-gray-300 rounded-lg px-3 bg-white mb-1"
       />
+      {errors.email ? (
+        <Text className="text-red-600 text-sm mb-2">{errors.email}</Text>
+      ) : null}
+
+      {/* Password */}
       <TextInput
         placeholder="Password"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
-        className="w-full h-12 border border-gray-300 rounded-lg px-3 bg-white mb-2"
+        className="w-full h-12 border border-gray-300 rounded-lg px-3 bg-white mb-1"
       />
+      {errors.password ? (
+        <Text className="text-red-600 text-sm mb-2">{errors.password}</Text>
+      ) : null}
 
       <View className="w-full mb-6 items-end">
         <Text className="text-[#722F37] font-semibold text-sm">
@@ -116,12 +149,14 @@ export default function SignUp() {
         </Text>
       </Text>
 
+      {/* OR Divider */}
       <View className="flex-row items-center w-full mb-10">
         <View className="flex-1 h-px bg-[#67747A]" />
         <Text className="mx-2 font-semibold text-[#67747A]">OR</Text>
         <View className="flex-1 h-px bg-[#67747A]" />
       </View>
 
+      {/* Social Buttons */}
       <View className="flex-col w-full mb-14 gap-4">
         <TouchableOpacity className="w-full h-12 border border-gray-300 rounded-lg flex-row items-center justify-center bg-white px-4">
           <Image
@@ -142,6 +177,7 @@ export default function SignUp() {
         </TouchableOpacity>
       </View>
 
+      {/* Terms & Privacy */}
       <View className="w-full py-4 items-center border-gray-200 mb-8">
         <Text className="text-center text-black text-sm px-3 font-semibold">
           By continuing, you agree to our{" "}

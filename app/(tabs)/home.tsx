@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { useUserStore } from "../store/user-store";
 import { useRouter } from "expo-router"; // import router
@@ -49,6 +50,7 @@ export default function HomePage() {
   const [selectedTab, setSelectedTab] = useState("today");
   const firstName = useUserStore((s) => s.firstName);
   const router = useRouter(); // initialize router
+  const [buttonLoading, setButtonLoading] = useState(false);
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString("en-US", {
@@ -62,7 +64,7 @@ export default function HomePage() {
     verticalCardsData.map((book) => (
       <TouchableOpacity
         key={book.id}
-        onPress={() => router.push("/currently-reading")} // navigate to CurrentlyReading page
+        onPress={() => router.push("/currently-reading")}
         className="flex-row border rounded-lg p-5 mb-4 border-[#EFDFBB] bg-white"
         style={{ minHeight: 120 }}
       >
@@ -118,6 +120,14 @@ export default function HomePage() {
         </View>
       </TouchableOpacity>
     ));
+
+  const handleAddBookPress = () => {
+    setButtonLoading(true);
+    // Optional: small delay so spinner is visible
+    setTimeout(() => {
+      router.push("/book/page1");
+    }, 500);
+  };
 
   return (
     <ScrollView
@@ -185,36 +195,23 @@ export default function HomePage() {
               desc = "0 Book(s)";
             }
 
-            const isSelected = selectedTab === tab;
-
             return (
-              <TouchableOpacity
+              <View
                 key={tab}
-                onPress={() => setSelectedTab(tab)}
-                className={`w-[140] mr-4 p-4 rounded-lg border ${
-                  isSelected
-                    ? "bg-[#FDF6E7] border-[#EFDFBB]"
-                    : "bg-white border-[#EFDFBB]"
-                }`}
+                className="w-[140] mr-4 p-4 rounded-lg border bg-white border-[#EFDFBB]"
               >
                 <Text
                   numberOfLines={1}
                   ellipsizeMode="tail"
-                  className={`text-center font-semibold ${
-                    isSelected ? "text-[#722F37]" : "text-[#141414]"
-                  }`}
+                  className="text-center font-semibold text-[#141414]"
                 >
                   {title}
                 </Text>
 
-                <Text
-                  className={`text-center text-sm mt-1 ${
-                    isSelected ? "text-[#722F37]" : "text-[#141414]"
-                  }`}
-                >
+                <Text className="text-center text-sm mt-1 text-[#141414]">
                   {desc}
                 </Text>
-              </TouchableOpacity>
+              </View>
             );
           })}
         </ScrollView>
@@ -233,8 +230,16 @@ export default function HomePage() {
           <Text className="text-[#141414] text-center mb-4 px-4 text-lg">
             Add a Book to Get Started
           </Text>
-          <TouchableOpacity className="bg-[#722F37] w-full py-4 rounded-lg">
-            <Text className="text-white font-bold text-center">Add a Book</Text>
+          <TouchableOpacity
+            onPress={handleAddBookPress}
+            className="bg-[#722F37] w-full py-4 rounded-lg items-center justify-center flex-row"
+            disabled={buttonLoading}
+          >
+            {buttonLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text className="text-white font-bold text-center">Add a Book</Text>
+            )}
           </TouchableOpacity>
         </View>
       )}

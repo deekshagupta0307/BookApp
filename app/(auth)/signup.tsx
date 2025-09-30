@@ -65,7 +65,7 @@ export default function SignUp() {
       className="flex-1 bg-[#FFFBF2] px-6"
       contentContainerStyle={{ alignItems: "center", paddingVertical: 10 }}
     >
-       <View className="w-full flex-row justify-end mb-4 mt-4">
+       <View className="w-full flex-row justify-end mb-4 mt-16">
         <TouchableOpacity onPress={() => router.replace("/home")}>
           <Text className="text-[#722F37] font-semibold text-base">Skip</Text>
         </TouchableOpacity>

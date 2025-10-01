@@ -19,6 +19,7 @@ export default function WeeklyPages() {
   const weeklyPages = useSignupStore((s) => s.weeklyPages);
   const setWeeklyPages = useSignupStore((s) => s.setWeeklyPages);
   const [error, setError] = useState("");
+  const [focusedDay, setFocusedDay] = useState<string | null>(null);
 
   const increment = (day: string) => {
     let num = parseInt(weeklyPages[day]) || 0;
@@ -98,7 +99,17 @@ export default function WeeklyPages() {
                     keyboardType="numeric"
                     placeholder="00"
                     placeholderTextColor="#999"
-                    className="border border-gray-300 p-3 w-28 text-center rounded-lg bg-white"
+                    onFocus={() => setFocusedDay(day)}
+                    onBlur={() => setFocusedDay(null)}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: focusedDay === day ? "#722F37" : "#E7E7E7",
+                      padding: 10,
+                      width: 70,
+                      textAlign: "center",
+                      borderRadius: 10,
+                      backgroundColor: "#fff",
+                    }}
                   />
 
                   <TouchableOpacity

@@ -18,6 +18,7 @@ export default function Signup3() {
   const router = useRouter();
   const { totalPages, setTotalPages } = useSignupStore();
   const [error, setError] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
 
   const handleNext = () => {
     if (!totalPages.trim()) {
@@ -63,9 +64,23 @@ export default function Signup3() {
               }}
               placeholder="Enter Number of Pages"
               keyboardType="numeric"
-              className="border border-gray-300 p-5 w-full rounded-lg bg-white mb-1"
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              style={{
+                borderWidth: 1,
+                borderColor: isFocused ? "#722F37" : "#E7E7E7",
+                padding: 20,
+                width: "100%",
+                borderRadius: 12,
+                backgroundColor: "#fff",
+                marginBottom: 6,
+              }}
             />
-            {error ? <Text className="text-red-500 mb-6">{error}</Text> : <View className="mb-6" />}
+            {error ? (
+              <Text className="text-red-500 mb-6">{error}</Text>
+            ) : (
+              <View className="mb-6" />
+            )}
           </View>
 
           <View className="flex-row justify-between w-full mb-10 px-4">
@@ -78,7 +93,9 @@ export default function Signup3() {
                 className="w-14 h-14 rounded-full items-center justify-center"
                 style={{ backgroundColor: "#EFDFBB" }}
               >
-                <Text className="text-2xl text-[#722F37] font-extrabold">←</Text>
+                <Text className="text-2xl text-[#722F37] font-extrabold">
+                  ←
+                </Text>
               </TouchableOpacity>
             </View>
 

@@ -16,12 +16,10 @@ import { useSignupStore } from "../store/signup-store";
 
 export default function EverydayPages() {
   const router = useRouter();
-
-  // ✅ get value & setter from store
   const everydayPages = useSignupStore((s) => s.everydayPages);
   const setEverydayPages = useSignupStore((s) => s.setEverydayPages);
-
   const [error, setError] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
 
   const increment = () => {
     let num = parseInt(everydayPages) || 0;
@@ -95,7 +93,17 @@ export default function EverydayPages() {
                 keyboardType="numeric"
                 placeholder="Pages Everyday"
                 placeholderTextColor="#999"
-                className="border border-gray-300 p-5 w-44 text-center rounded-lg bg-white"
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                style={{
+                  borderWidth: 1,
+                  borderColor: isFocused ? "#722F37" : "#E7E7E7",
+                  padding: 20,
+                  width: 110,
+                  textAlign: "center",
+                  borderRadius: 12,
+                  backgroundColor: "#fff",
+                }}
               />
 
               <TouchableOpacity

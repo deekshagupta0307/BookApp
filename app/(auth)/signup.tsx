@@ -65,9 +65,27 @@ export default function SignUp() {
       className="flex-1 bg-[#FFFBF2] px-6"
       contentContainerStyle={{ alignItems: "center", paddingVertical: 10 }}
     >
-       <View className="w-full flex-row justify-end mb-4 mt-16">
+      <View className="w-full flex-row justify-end mb-4 mt-16">
         <TouchableOpacity onPress={() => router.replace("/home")}>
           <Text className="text-[#722F37] font-semibold text-base">Skip</Text>
+        </TouchableOpacity>
+      </View>
+      <View className="w-full flex-row justify-end mb-4">
+        <TouchableOpacity
+          onPress={() => router.replace("/my-shelf/reading-now")}
+        >
+          <Text className="text-[#722F37] font-semibold text-base">
+            My shelf
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <View className="w-full flex-row justify-end mb-4">
+        <TouchableOpacity
+          onPress={() => router.replace("/my-pals/pals-page")}
+        >
+          <Text className="text-[#722F37] font-semibold text-base">
+            My Pals
+          </Text>
         </TouchableOpacity>
       </View>
       <Image
@@ -90,7 +108,9 @@ export default function SignUp() {
             className="h-12 border border-gray-300 rounded-lg px-3 bg-white"
           />
           {errors.firstName ? (
-            <Text className="text-red-600 text-sm mt-1">{errors.firstName}</Text>
+            <Text className="text-red-600 text-sm mt-1">
+              {errors.firstName}
+            </Text>
           ) : null}
         </View>
         <TextInput
@@ -169,7 +189,9 @@ export default function SignUp() {
             className="w-6 h-6 mr-2"
             resizeMode="contain"
           />
-          <Text className="text-gray-800 font-semibold">Continue with Google</Text>
+          <Text className="text-gray-800 font-semibold">
+            Continue with Google
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity className="w-full h-12 border border-gray-300 rounded-lg flex-row items-center justify-center bg-white px-4">
@@ -178,7 +200,9 @@ export default function SignUp() {
             className="w-6 h-6 mr-2"
             resizeMode="contain"
           />
-          <Text className="text-gray-800 font-semibold">Continue with Apple</Text>
+          <Text className="text-gray-800 font-semibold">
+            Continue with Apple
+          </Text>
         </TouchableOpacity>
       </View>
 

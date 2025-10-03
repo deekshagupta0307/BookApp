@@ -370,7 +370,7 @@ export default function ReadingNow() {
                 }}
               >
                 <Text style={{ color: "#722F37", fontWeight: "bold" }}>
-                  Close
+                  Cancel
                 </Text>
               </TouchableOpacity>
             </View>

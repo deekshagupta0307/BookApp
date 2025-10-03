@@ -88,6 +88,15 @@ export default function SignUp() {
           </Text>
         </TouchableOpacity>
       </View>
+       <View className="w-full flex-row justify-end mb-4">
+        <TouchableOpacity
+          onPress={() => router.replace("/profile/my-profile")}
+        >
+          <Text className="text-[#722F37] font-semibold text-base">
+            Profile
+          </Text>
+        </TouchableOpacity>
+      </View>
       <Image
         source={require("../../assets/images/signup/logo.png")}
         className="w-40 h-40"

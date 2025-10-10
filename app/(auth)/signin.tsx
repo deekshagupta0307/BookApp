@@ -1,27 +1,27 @@
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Google from "expo-auth-session/providers/google";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
   ScrollView,
-  View,
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
-  Linking,
-  ActivityIndicator,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { useState } from "react";
 import { useUserStore } from "../store/user-store";
-import * as AppleAuthentication from "expo-apple-authentication";
-import * as Google from "expo-auth-session/providers/google";
 
 export default function SignIn() {
   const router = useRouter();
-  const storedEmail = useUserStore((s) => s.email);
-  const storedPassword = useUserStore((s) => s.password);
+  const signIn = useUserStore((s) => s.signIn);
+  const isLoading = useUserStore((s) => s.isLoading);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ email: "", password: "" });
 
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -30,11 +30,12 @@ export default function SignIn() {
 
   const validateEmail = (email: string) => /\S+@\S+\.\S+/.test(email);
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     setErrors({ email: "", password: "" });
     let valid = true;
     const newErrors = { email: "", password: "" };
 
+    // Validation
     if (!email.trim() || !validateEmail(email)) {
       newErrors.email = "Please enter a valid email";
       valid = false;
@@ -43,20 +44,21 @@ export default function SignIn() {
       newErrors.password = "Password is required";
       valid = false;
     }
-    if (valid && (email !== storedEmail || password !== storedPassword)) {
-      newErrors.email = "Email or password is incorrect";
-      newErrors.password = "Email or password is incorrect";
-      valid = false;
-    }
 
     setErrors(newErrors);
     if (!valid) return;
 
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      router.replace("/components/hello-page");
-    }, 1500);
+    // Attempt to sign in
+    const result = await signIn(email, password);
+
+    if (result.success) {
+      router.replace("/(tabs)/home");
+    } else {
+      Alert.alert(
+        "Error",
+        result.error || "Failed to sign in. Please check your credentials."
+      );
+    }
   };
 
   const handleAppleSignIn = async () => {
@@ -126,9 +128,9 @@ export default function SignIn() {
       <TouchableOpacity
         onPress={handleSignIn}
         className="w-full h-12 bg-[#722F37] rounded-lg items-center justify-center mb-6"
-        disabled={loading}
+        disabled={isLoading}
       >
-        {loading ? (
+        {isLoading ? (
           <ActivityIndicator color="#fff" />
         ) : (
           <Text className="text-white text-base font-semibold">Sign In</Text>
@@ -161,7 +163,9 @@ export default function SignIn() {
             className="w-6 h-6 mr-2"
             resizeMode="contain"
           />
-          <Text className="text-gray-800 font-semibold">Continue with Google</Text>
+          <Text className="text-gray-800 font-semibold">
+            Continue with Google
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -173,7 +177,9 @@ export default function SignIn() {
             className="w-6 h-6 mr-2"
             resizeMode="contain"
           />
-          <Text className="text-gray-800 font-semibold">Continue with Apple</Text>
+          <Text className="text-gray-800 font-semibold">
+            Continue with Apple
+          </Text>
         </TouchableOpacity>
       </View>
 

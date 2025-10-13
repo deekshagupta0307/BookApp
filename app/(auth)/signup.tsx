@@ -1,63 +1,83 @@
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
   ScrollView,
-  View,
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
-  Linking,
-  ActivityIndicator,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { useState } from "react";
 import { useUserStore } from "../store/user-store";
 
 export default function SignUp() {
   const router = useRouter();
-  const setFirstName = useUserStore((s) => s.setFirstName);
-  const setCredentials = useUserStore((s) => s.setCredentials);
+  const signUp = useUserStore((s) => s.signUp);
+  const isLoading = useUserStore((s) => s.isLoading);
 
   const [firstName, setFirstNameLocal] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({
     firstName: "",
+    lastName: "",
     email: "",
     password: "",
   });
 
   const validateEmail = (email: string) => /\S+@\S+\.\S+/.test(email);
+  const validatePassword = (password: string) => password.length >= 6;
 
-  const handleSignUp = () => {
-    setErrors({ firstName: "", email: "", password: "" });
+  const handleSignUp = async () => {
+    setErrors({ firstName: "", lastName: "", email: "", password: "" });
     let valid = true;
-    const newErrors = { firstName: "", email: "", password: "" };
+    const newErrors = { firstName: "", lastName: "", email: "", password: "" };
 
+    // Validation
     if (!firstName.trim()) {
       newErrors.firstName = "First name is required";
+      valid = false;
+    }
+    if (!lastName.trim()) {
+      newErrors.lastName = "Last name is required";
       valid = false;
     }
     if (!email.trim() || !validateEmail(email)) {
       newErrors.email = "Please enter a valid email";
       valid = false;
     }
-    if (!password.trim()) {
-      newErrors.password = "Password is required";
+    if (!password.trim() || !validatePassword(password)) {
+      newErrors.password = "Password must be at least 6 characters";
       valid = false;
     }
 
     setErrors(newErrors);
     if (!valid) return;
 
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setFirstName(firstName);
-      setCredentials(email, password);
-      router.replace("/(auth)/signin");
-    }, 2000);
+    // Attempt to sign up
+    const result = await signUp(email, password, firstName, lastName);
+
+    if (result.success) {
+      Alert.alert(
+        "Success!",
+        "Account created successfully. Please check your email to verify your account.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace("/(auth)/signin"),
+          },
+        ]
+      );
+    } else {
+      Alert.alert(
+        "Error",
+        result.error || "Failed to create account. Please try again."
+      );
+    }
   };
 
   return (
@@ -80,18 +100,14 @@ export default function SignUp() {
         </TouchableOpacity>
       </View>
       <View className="w-full flex-row justify-end mb-4">
-        <TouchableOpacity
-          onPress={() => router.replace("/my-pals/pals-page")}
-        >
+        <TouchableOpacity onPress={() => router.replace("/my-pals/pals-page")}>
           <Text className="text-[#722F37] font-semibold text-base">
             My Pals
           </Text>
         </TouchableOpacity>
       </View>
-       <View className="w-full flex-row justify-end mb-4">
-        <TouchableOpacity
-          onPress={() => router.replace("/profile/my-profile")}
-        >
+      <View className="w-full flex-row justify-end mb-4">
+        <TouchableOpacity onPress={() => router.replace("/profile/my-profile")}>
           <Text className="text-[#722F37] font-semibold text-base">
             Profile
           </Text>
@@ -122,12 +138,17 @@ export default function SignUp() {
             </Text>
           ) : null}
         </View>
-        <TextInput
-          placeholder="Last Name"
-          value={lastName}
-          onChangeText={setLastName}
-          className="flex-1 h-12 border border-gray-300 rounded-lg px-3 bg-white ml-2"
-        />
+        <View className="flex-1 ml-2">
+          <TextInput
+            placeholder="Last Name"
+            value={lastName}
+            onChangeText={setLastName}
+            className="h-12 border border-gray-300 rounded-lg px-3 bg-white"
+          />
+          {errors.lastName ? (
+            <Text className="text-red-600 text-sm mt-1">{errors.lastName}</Text>
+          ) : null}
+        </View>
       </View>
 
       {/* Email */}
@@ -164,9 +185,9 @@ export default function SignUp() {
         onPress={handleSignUp}
         className="w-full h-12 rounded-lg items-center justify-center mb-6"
         style={{ backgroundColor: "#722F37" }}
-        disabled={loading}
+        disabled={isLoading}
       >
-        {loading ? (
+        {isLoading ? (
           <ActivityIndicator color="#fff" />
         ) : (
           <Text className="text-white text-base font-semibold">Sign Up</Text>

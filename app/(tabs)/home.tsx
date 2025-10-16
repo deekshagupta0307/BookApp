@@ -1,15 +1,15 @@
+import { useRouter } from "expo-router"; // import router
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
+  Dimensions,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useUserStore } from "../store/user-store";
-import { useRouter } from "expo-router"; // import router
 
 const { width } = Dimensions.get("window");
 
@@ -125,7 +125,7 @@ export default function HomePage() {
     setButtonLoading(true);
     // Optional: small delay so spinner is visible
     setTimeout(() => {
-      router.push("/book/page1");
+      router.push("/(tabs)/Book/page1");
     }, 500);
   };
 
@@ -238,7 +238,9 @@ export default function HomePage() {
             {buttonLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text className="text-white font-bold text-center">Add a Book</Text>
+              <Text className="text-white font-bold text-center">
+                Add a Book
+              </Text>
             )}
           </TouchableOpacity>
         </View>

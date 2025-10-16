@@ -18,6 +18,7 @@ import { useUserStore } from "../store/user-store";
 export default function SignIn() {
   const router = useRouter();
   const signIn = useUserStore((s) => s.signIn);
+  const forgotPassword = useUserStore((s) => s.forgotPassword);
   const isLoading = useUserStore((s) => s.isLoading);
 
   const [email, setEmail] = useState("");
@@ -82,6 +83,30 @@ export default function SignIn() {
     } catch (e) {}
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.trim() || !validateEmail(email)) {
+      Alert.alert(
+        "Invalid Email",
+        "Please enter a valid email address to reset your password."
+      );
+      return;
+    }
+
+    const result = await forgotPassword(email);
+
+    if (result.success) {
+      Alert.alert(
+        "Password Reset Email Sent",
+        "Please check your email for instructions to reset your password."
+      );
+    } else {
+      Alert.alert(
+        "Error",
+        result.error || "Failed to send password reset email. Please try again."
+      );
+    }
+  };
+
   return (
     <ScrollView
       className="flex-1 bg-[#FFFBF2] px-6"
@@ -120,9 +145,11 @@ export default function SignIn() {
       ) : null}
 
       <View className="w-full mb-6 items-end">
-        <Text className="text-[#722F37] font-semibold text-sm">
-          Forgot Password?
-        </Text>
+        <TouchableOpacity onPress={handleForgotPassword}>
+          <Text className="text-[#722F37] font-semibold text-sm">
+            Forgot Password?
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity

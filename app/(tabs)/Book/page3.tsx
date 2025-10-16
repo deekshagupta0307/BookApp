@@ -1,26 +1,32 @@
+import { useSignupStore } from "@/app/store/signup-store";
+import { useUserStore } from "@/app/store/user-store";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
   Image,
-  TextInput,
   KeyboardAvoidingView,
-  ScrollView,
   Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { useSignupStore } from "@/app/store/signup-store";
+import { BookService } from "../../../lib/books";
 
 export default function Page3() {
   const router = useRouter();
 
   const everydayPages = useSignupStore((s) => s.everydayPages);
   const setEverydayPages = useSignupStore((s) => s.setEverydayPages);
+  const bookName = useSignupStore((s) => s.bookName);
+  const author = useSignupStore((s) => s.author);
+  const totalPages = useSignupStore((s) => s.totalPages);
+  const user = useUserStore((s) => s.user);
 
   const [error, setError] = useState("");
-  const [focused, setFocused] = useState(false); 
+  const [focused, setFocused] = useState(false);
 
   const increment = () => {
     let num = parseInt(everydayPages) || 0;
@@ -43,13 +49,42 @@ export default function Page3() {
     setError("");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!bookName.trim() || !author.trim() || !totalPages.trim()) {
+      setError("Missing details from step 1. Please go back and fill them.");
+      return;
+    }
     if (!everydayPages.trim() || parseInt(everydayPages) <= 0) {
       setError("Please enter how many pages you can read every day.");
       return;
     }
+    if (!user?.id) {
+      setError("You must be signed in to add a book.");
+      return;
+    }
+
     setError("");
-    router.push("/book/book-added");
+
+    // Insert book, then link to user as currently_reading
+    const { data: book, error } = await BookService.addBook({
+      title: bookName,
+      author,
+      page_count: parseInt(totalPages, 10),
+    });
+    if (error || !book) {
+      setError("Failed to add book. Please try again.");
+      return;
+    }
+    const link = await BookService.addBookToUser(
+      user.id,
+      book.id,
+      "currently_reading"
+    );
+    if (link.error) {
+      setError("Failed to add book to your shelf. Please try again.");
+      return;
+    }
+    router.push("/(tabs)/Book/book-added");
   };
 
   return (
@@ -105,7 +140,7 @@ export default function Page3() {
               placeholderTextColor="#999"
               className="border p-5 w-56 text-center rounded-lg bg-white"
               style={{
-                borderColor: focused ? "#722F37" : "#D1D5DB", 
+                borderColor: focused ? "#722F37" : "#D1D5DB",
                 borderWidth: 1,
               }}
               onFocus={() => setFocused(true)}
@@ -122,7 +157,9 @@ export default function Page3() {
           </View>
 
           {error ? (
-            <Text className="text-red-500 text-sm mb-4 text-center">{error}</Text>
+            <Text className="text-red-500 text-sm mb-4 text-center">
+              {error}
+            </Text>
           ) : null}
 
           <View className="mt-6 mb-10">
@@ -130,7 +167,9 @@ export default function Page3() {
               onPress={handleSubmit}
               className="bg-[#722F37] w-full py-4 rounded-xl"
             >
-              <Text className="text-white font-bold text-center text-lg">Add a Book</Text>
+              <Text className="text-white font-bold text-center text-lg">
+                Add a Book
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

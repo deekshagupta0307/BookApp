@@ -39,22 +39,7 @@ export class AuthService {
         return { user: null, session: null, error };
       }
 
-      // If signup is successful, create user profile
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: data.user.email!,
-            first_name: firstName,
-            last_name: lastName,
-          });
-
-        if (profileError) {
-          console.error('Error creating user profile:', profileError);
-          // Don't fail the signup if profile creation fails
-        }
-      }
+      // Profile creation is handled by a DB trigger; no client insert needed
 
       return { user: data.user, session: data.session, error: null };
     } catch (error) {
@@ -124,8 +109,11 @@ export class AuthService {
   // Reset password
   static async resetPassword(email: string): Promise<{ error: AuthError | null }> {
     try {
+      const redirectTo =
+        (process.env.EXPO_PUBLIC_RESET_REDIRECT_URL as string | undefined) ??
+        'bookapp://reset-password';
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://yourapp.com/reset-password', // Update with your app's URL
+        redirectTo,
       });
       return { error };
     } catch (error) {
@@ -136,6 +124,7 @@ export class AuthService {
   // Update password
   static async updatePassword(newPassword: string): Promise<{ error: AuthError | null }> {
     try {
+      console.log(`Updating password to: ${newPassword}`);
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });

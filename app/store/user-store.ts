@@ -22,6 +22,8 @@ interface UserState {
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   initializeAuth: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
 }
 
  export const useUserStore = create<UserState>((set, get) => ({
@@ -176,6 +178,50 @@ interface UserState {
     } catch (error) {
       console.error("Error initializing auth:", error);
       set({ isLoading: false });
+    }
+  },
+
+  forgotPassword: async (email) => {
+    set({ isLoading: true });
+    
+    try {
+      const { error } = await AuthService.resetPassword(email);
+
+      if (error) {
+        set({ isLoading: false });
+        return { success: false, error: error.message };
+      }
+
+      set({ isLoading: false });
+      return { success: true };
+    } catch (error) {
+      set({ isLoading: false });
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "An unexpected error occurred" 
+      };
+    }
+  },
+
+  updatePassword: async (newPassword) => {
+    set({ isLoading: true });
+    
+    try {
+      const { error } = await AuthService.updatePassword(newPassword);
+
+      if (error) {
+        set({ isLoading: false });
+        return { success: false, error: error.message };
+      }
+
+      set({ isLoading: false });
+      return { success: true };
+    } catch (error) {
+      set({ isLoading: false });
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "An unexpected error occurred" 
+      };
     }
   },
 }));

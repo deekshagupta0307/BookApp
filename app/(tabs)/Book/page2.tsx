@@ -1,12 +1,15 @@
-import React from "react";
-import { View, Text, Image, TouchableOpacity, ScrollView } from "react-native";
 import { useRouter } from "expo-router"; // ✅ Import useRouter
+import React from "react";
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 export default function Page2() {
   const router = useRouter(); // ✅ Initialize router
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 20 }}>
+    <ScrollView
+      className="flex-1 bg-white"
+      contentContainerStyle={{ paddingBottom: 20 }}
+    >
       {/* Top Container */}
       <View className="flex-row items-center justify-between px-4 py-3 mt-12">
         <View className="flex-row items-center">
@@ -38,15 +41,17 @@ export default function Page2() {
       {/* Buttons */}
       <View className="px-6 gap-4">
         <TouchableOpacity
-          onPress={() => router.push("/book/page3")}
+          onPress={() => router.push("/(tabs)/Book/page3")}
           className="w-full h-14 rounded-lg items-center justify-center"
           style={{ backgroundColor: "#722F37" }}
         >
-          <Text className="text-lg text-white font-semibold">Everyday Plan</Text>
+          <Text className="text-lg text-white font-semibold">
+            Everyday Plan
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => router.push("/book/page4")}
+          onPress={() => router.push("/(tabs)/Book/page4")}
           className="w-full h-14 rounded-lg items-center justify-center border"
           style={{ borderColor: "#722F37", backgroundColor: "transparent" }}
         >

@@ -111,6 +111,18 @@ CREATE POLICY "Users can update own profile" ON public.users
 CREATE POLICY "Users can insert own profile" ON public.users
   FOR INSERT WITH CHECK (auth.uid() = id);
 
+-- Allow trusted backend roles (e.g., auth trigger) to insert profiles
+DROP POLICY IF EXISTS "Allow inserts via auth trigger" ON public.users;
+
+-- Allow inserts either by the user themselves (JWT) or by trusted DB roles
+CREATE POLICY "Allow inserts via backend" ON public.users
+  FOR INSERT
+  WITH CHECK (
+    auth.uid() = id
+    OR pg_has_role(current_user, 'postgres', 'member')
+    OR pg_has_role(current_user, 'supabase_admin', 'member')
+  );
+
 -- Books are publicly readable
 CREATE POLICY "Books are publicly readable" ON public.books
   FOR SELECT USING (true);
@@ -207,6 +219,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Ensure SECURITY DEFINER function runs with expected search path
+ALTER FUNCTION public.handle_new_user() SET search_path = public, extensions;
 
 -- Create trigger for new user registration
 CREATE TRIGGER on_auth_user_created

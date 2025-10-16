@@ -54,7 +54,7 @@ export default function Page4() {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      router.push("/book/book-added");
+      router.push("/(tabs)/Book/book-added");
     }, 1000);
   };
 

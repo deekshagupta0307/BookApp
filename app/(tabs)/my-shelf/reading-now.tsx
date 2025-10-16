@@ -1,16 +1,16 @@
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  TextInput,
-  Dimensions,
-  Modal,
   ActivityIndicator,
+  Dimensions,
+  Image,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
@@ -181,7 +181,9 @@ export default function ReadingNow() {
                 : `Finished Books: ${booksData.length}`}
             </Text>
             <View className="flex-row space-x-4">
-              <TouchableOpacity onPress={() => router.push("/book/page1")}>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/Book/page1")}
+              >
                 <Text className="text-[#722F37] underline font-semibold mr-2">
                   Add Book
                 </Text>
@@ -347,7 +349,7 @@ export default function ReadingNow() {
                   backgroundColor: "#722F37",
                   justifyContent: "center",
                   alignItems: "center",
-                  marginRight: 5, 
+                  marginRight: 5,
                 }}
               >
                 <Text style={{ color: "#fff", fontWeight: "bold" }}>
@@ -366,7 +368,7 @@ export default function ReadingNow() {
                   backgroundColor: "transparent",
                   justifyContent: "center",
                   alignItems: "center",
-                  marginLeft: 5, 
+                  marginLeft: 5,
                 }}
               >
                 <Text style={{ color: "#722F37", fontWeight: "bold" }}>

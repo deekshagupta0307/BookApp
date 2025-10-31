@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BookService } from "../../../lib/books";
+import { ReadingPlanService } from "../../../lib/reading-plans";
 
 export default function Page3() {
   const router = useRouter();
@@ -84,6 +85,19 @@ export default function Page3() {
       setError("Failed to add book to your shelf. Please try again.");
       return;
     }
+
+    // Save everyday reading plan
+    const planResult = await ReadingPlanService.createReadingPlan(
+      user.id,
+      book.id,
+      'everyday',
+      parseInt(everydayPages, 10)
+    );
+    if (planResult.error) {
+      // Log error but don't block navigation - plan creation is optional
+      console.error("Failed to save reading plan:", planResult.error);
+    }
+
     router.push("/(tabs)/Book/book-added");
   };
 

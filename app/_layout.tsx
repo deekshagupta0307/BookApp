@@ -1,7 +1,20 @@
-import { Ionicons } from "@expo/vector-icons";
-import { Stack, Tabs, useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import "../global.css";
+
+/**
+ * Root Layout
+ * 
+ * This is the main layout file for the entire app.
+ * It handles:
+ * - Overall app structure
+ * - Authentication state management
+ * - Initial routing based on login status
+ * 
+ * Route Groups:
+ * - (auth): Authentication routes (signin, signup) - handled by app/(auth)/_layout.tsx
+ * - (tabs): Main app routes with tab navigation - handled by app/(tabs)/_layout.tsx
+ */
 export default function RootLayout() {
   const [isLoggedIn, setIsLoggedIn] = useState(false); 
   const [mounted, setMounted] = useState(false); 
@@ -17,50 +30,17 @@ export default function RootLayout() {
     }
   }, [mounted, isLoggedIn]);
 
-  if (!isLoggedIn) {
-    return (
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="auth/signup" />
-      </Stack>
-    );
-  }
-
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: "#1E90FF",
-        tabBarInactiveTintColor: "gray",
-        tabBarStyle: { height: 70, paddingBottom: 10 },
-      }}
-    >
-      <Tabs.Screen
-        name="home"
-        options={{
-          tabBarLabel: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          tabBarLabel: "Explore",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          tabBarLabel: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" color={color} size={size} />
-          ),
-        }}
-      />
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false }}>
+      {/* Auth routes - managed by (auth)/_layout.tsx */}
+      <Stack.Screen name="(auth)" />
+      
+      {/* Tab routes - managed by (tabs)/_layout.tsx */}
+      <Stack.Screen name="(tabs)" />
+      
+      {/* Other routes */}
+      <Stack.Screen name="components" />
+      <Stack.Screen name="reset-password" />
+    </Stack>
   );
 }

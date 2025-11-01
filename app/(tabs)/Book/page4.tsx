@@ -1,19 +1,19 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  TextInput,
-  Image,
-  ActivityIndicator,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
 import { useSignupStore } from "@/app/store/signup-store";
 import { useUserStore } from "@/app/store/user-store";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { BookService } from "../../../lib/books";
 import { ReadingPlanService } from "../../../lib/reading-plans";
 
@@ -124,6 +124,7 @@ export default function Page4() {
       }
 
       router.push("/(tabs)/Book/book-added");
+      setLoading(false);
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);

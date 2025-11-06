@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from "react";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
+  ActivityIndicator,
   Image,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
 
 export default function BookAdded() {
   const router = useRouter();
@@ -81,6 +81,7 @@ export default function BookAdded() {
               onPress={() => {
                 setButtonLoading(true);
                 router.push("/my-shelf/reading-now");
+                setButtonLoading(false);
               }}
               className="bg-[#722F37] py-4 rounded-lg items-center justify-center flex-row"
               disabled={buttonLoading} // prevent multiple taps

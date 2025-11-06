@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -11,51 +11,70 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { BookService, UserBook } from "../../../lib/books";
+import { useUserStore } from "../../store/user-store";
 
 const { width } = Dimensions.get("window");
 
-const initialBooksData = [
-  {
-    id: "1",
-    title: "Harry Potter and the Philosopher's Stone",
-    text: "By J. K. Rowling",
-    progress: 0.7,
-  },
-  {
-    id: "2",
-    title: "Harry Potter and the Chamber of Secrets",
-    text: "By J. K. Rowling",
-    progress: 0.4,
-  },
-  {
-    id: "3",
-    title: "Harry Potter and the Prisoner of Azkaban",
-    text: "By J. K. Rowling",
-    progress: 0.9,
-  },
-  {
-    id: "4",
-    title: "Harry Potter and the Goblet of Fire",
-    text: "By J. K. Rowling",
-    progress: 0.2,
-  },
-  {
-    id: "5",
-    title: "Harry Potter and the Order of the Phoenix",
-    text: "By J. K. Rowling",
-    progress: 0.5,
-  },
-];
-
 export default function ReadingNow() {
   const [activeTab, setActiveTab] = useState<"reading" | "finished">("reading");
-  const [booksData, setBooksData] = useState(initialBooksData);
+  const [booksData, setBooksData] = useState<UserBook[]>([]);
+  const [filteredBooks, setFilteredBooks] = useState<UserBook[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [selectedBooks, setSelectedBooks] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const router = useRouter();
+  const { user } = useUserStore();
+
+  // Fetch user books based on active tab
+  useEffect(() => {
+    const fetchBooks = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const status = activeTab === "reading" ? "currently_reading" : "read";
+        const { data, error } = await BookService.getUserBooks(user.id, status);
+
+        if (error) {
+          console.error("Error fetching books:", error);
+          setBooksData([]);
+        } else {
+          setBooksData(data || []);
+          setFilteredBooks(data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching books:", error);
+        setBooksData([]);
+        setFilteredBooks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, [user?.id, activeTab]);
+
+  // Filter books based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredBooks(booksData);
+    } else {
+      const filtered = booksData.filter(
+        (book) =>
+          book.book?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          book.book?.author?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredBooks(filtered);
+    }
+  }, [searchQuery, booksData]);
 
   const toggleSelectBook = (id: string) => {
     setSelectedBooks((prev) =>
@@ -63,17 +82,41 @@ export default function ReadingNow() {
     );
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     setDeleting(true);
-    setTimeout(() => {
+    try {
+      // Delete all selected books from the database
+      const deletePromises = selectedBooks.map((bookId) =>
+        BookService.removeBookFromUser(bookId)
+      );
+
+      await Promise.all(deletePromises);
+
+      // Remove deleted books from local state
       setBooksData(
         booksData.filter((book) => !selectedBooks.includes(book.id))
       );
+      setFilteredBooks(
+        filteredBooks.filter((book) => !selectedBooks.includes(book.id))
+      );
       setSelectedBooks([]);
       setEditMode(false);
-      setDeleting(false);
       setShowDialog(false);
-    }, 500);
+    } catch (error) {
+      console.error("Error deleting books:", error);
+      // Still update UI even if there's an error (optimistic update)
+      setBooksData(
+        booksData.filter((book) => !selectedBooks.includes(book.id))
+      );
+      setFilteredBooks(
+        filteredBooks.filter((book) => !selectedBooks.includes(book.id))
+      );
+      setSelectedBooks([]);
+      setEditMode(false);
+      setShowDialog(false);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -110,6 +153,7 @@ export default function ReadingNow() {
                     setActiveTab(tab as "reading" | "finished");
                     setEditMode(false);
                     setSelectedBooks([]);
+                    setSearchQuery("");
                   }}
                   style={{
                     flex: 1,
@@ -166,6 +210,8 @@ export default function ReadingNow() {
               placeholder="Search Book"
               placeholderTextColor="#141414"
               style={{ flex: 1, fontSize: 14, color: "#141414" }}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
           </View>
         </View>
@@ -177,8 +223,8 @@ export default function ReadingNow() {
           >
             <Text className="text-lg font-medium text-[#141414]">
               {activeTab === "reading"
-                ? `Reading Now: ${booksData.length}`
-                : `Finished Books: ${booksData.length}`}
+                ? `Reading Now: ${filteredBooks.length}`
+                : `Finished Books: ${filteredBooks.length}`}
             </Text>
             <View className="flex-row space-x-4">
               <TouchableOpacity
@@ -201,92 +247,113 @@ export default function ReadingNow() {
             </View>
           </View>
 
-          {booksData.map((book) => (
-            <View
-              key={book.id}
-              className="flex-row items-center mb-4"
-              style={{ alignItems: "center" }}
-            >
-              <TouchableOpacity
-                onPress={() => router.push("/currently-reading")}
-                className="flex-1 flex-row border rounded-lg p-5 border-[#EFDFBB] bg-white"
-                style={{ minHeight: 120, opacity: editMode ? 0.8 : 1 }}
-              >
-                <Image
-                  source={require("../../../assets/images/home/book.png")}
-                  className="w-10 h-10 mr-4"
-                  resizeMode="contain"
-                />
-                <View className="flex-1 justify-center">
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    className="text-[#141414] font-semibold text-lg"
-                  >
-                    {book.title}
-                  </Text>
-                  <Text
-                    className="text-[#141414] mb-4"
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {book.text}
-                  </Text>
-                  <View className="flex-row justify-between mb-1">
-                    <Text className="text-[#141414] text-sm">
-                      <Text className="font-bold">Completed: </Text>
-                      {Math.round(book.progress * 100)}%
-                    </Text>
-                    <Text className="text-[#141414] text-sm">
-                      <Text className="font-bold">Total Pages: </Text>300
-                    </Text>
-                  </View>
-                  <View
-                    className="h-3 bg-gray-300 rounded-full"
-                    style={{ overflow: "hidden", width: "100%" }}
-                  >
-                    <View
-                      className="h-3 bg-[#722F37] rounded-full"
-                      style={{ width: `${book.progress * 100}%` }}
-                    />
-                  </View>
-                </View>
-                <Image
-                  source={require("../../../assets/images/home/arrow-right.png")}
-                  className="w-5 h-5 mb-6"
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-
-              {editMode && (
-                <TouchableOpacity
-                  onPress={() => toggleSelectBook(book.id)}
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 4,
-                    borderWidth: 1,
-                    borderColor: "#722F37",
-                    marginLeft: 8,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: selectedBooks.includes(book.id)
-                      ? "#722F37"
-                      : "#fff",
-                  }}
-                >
-                  {selectedBooks.includes(book.id) && (
-                    <Text style={{ color: "#fff", fontWeight: "bold" }}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              )}
+          {loading ? (
+            <View style={{ paddingVertical: 40, alignItems: "center" }}>
+              <ActivityIndicator size="large" color="#722F37" />
+              <Text className="text-gray-600 mt-4">Loading books...</Text>
             </View>
-          ))}
+          ) : filteredBooks.length === 0 ? (
+            <View style={{ paddingVertical: 40, alignItems: "center" }}>
+              <Text className="text-center text-gray-600">
+                {searchQuery
+                  ? "No books found matching your search."
+                  : activeTab === "reading"
+                  ? "You're not reading any books right now. Add a book to get started!"
+                  : "You haven't finished any books yet."}
+              </Text>
+            </View>
+          ) : (
+            filteredBooks.map((book) => (
+              <View
+                key={book.id}
+                className="flex-row items-center mb-4"
+                style={{ alignItems: "center" }}
+              >
+                <TouchableOpacity
+                  onPress={() => router.push("/currently-reading")}
+                  className="flex-1 flex-row border rounded-lg p-5 border-[#EFDFBB] bg-white"
+                  style={{ minHeight: 120, opacity: editMode ? 0.8 : 1 }}
+                >
+                  {book.book?.cover_url ? (
+                    <Image
+                      source={{ uri: book.book.cover_url }}
+                      className="w-10 h-10 mr-4"
+                      resizeMode="contain"
+                      style={{ borderRadius: 4 }}
+                    />
+                  ) : (
+                    <Image
+                      source={require("../../../assets/images/home/book.png")}
+                      className="w-10 h-10 mr-4"
+                      resizeMode="contain"
+                    />
+                  )}
+                  <View className="flex-1 justify-center">
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      className="text-[#141414] font-semibold text-lg"
+                    >
+                      {book.book?.title || "Unknown Book"}
+                    </Text>
+                    <Text
+                      className="text-[#141414] mb-4"
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      By {book.book?.author || "Unknown Author"}
+                    </Text>
+                    <View className="flex-row justify-between mb-1">
+                      <Text className="text-[#141414] text-sm">
+                        <Text className="font-bold">Completed: </Text>
+                        {book.progress}%
+                      </Text>
+                      <Text className="text-[#141414] text-sm">
+                        <Text className="font-bold">Total Pages: </Text>
+                        {book.book?.page_count || "N/A"}
+                      </Text>
+                    </View>
+                    <View
+                      className="h-3 bg-gray-300 rounded-full"
+                      style={{ overflow: "hidden", width: "100%" }}
+                    >
+                      <View
+                        className="h-3 bg-[#722F37] rounded-full"
+                        style={{ width: `${Math.min(book.progress, 100)}%` }}
+                      />
+                    </View>
+                  </View>
+                  <Image
+                    source={require("../../../assets/images/home/arrow-right.png")}
+                    className="w-5 h-5 mb-6"
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
 
-          {activeTab === "finished" && booksData.length === 0 && (
-            <Text className="text-center text-gray-600 mt-10">
-              You have finished all your books!
-            </Text>
+                {editMode && (
+                  <TouchableOpacity
+                    onPress={() => toggleSelectBook(book.id)}
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 4,
+                      borderWidth: 1,
+                      borderColor: "#722F37",
+                      marginLeft: 8,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: selectedBooks.includes(book.id)
+                        ? "#722F37"
+                        : "#fff",
+                    }}
+                  >
+                    {selectedBooks.includes(book.id) && (
+                      <Text style={{ color: "#fff", fontWeight: "bold" }}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))
           )}
         </View>
       </ScrollView>

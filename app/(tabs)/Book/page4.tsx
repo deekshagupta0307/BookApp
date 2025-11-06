@@ -1,24 +1,31 @@
+import { useSignupStore } from "@/app/store/signup-store";
+import { useUserStore } from "@/app/store/user-store";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
+  ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  Text,
   TextInput,
-  Image,
-  ActivityIndicator,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { useSignupStore } from "@/app/store/signup-store";
+import { BookService } from "../../../lib/books";
+import { ReadingPlanService } from "../../../lib/reading-plans";
 
 export default function Page4() {
   const router = useRouter();
   const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const weeklyPages = useSignupStore((s) => s.weeklyPages);
   const setWeeklyPages = useSignupStore((s) => s.setWeeklyPages);
+  const bookName = useSignupStore((s) => s.bookName);
+  const author = useSignupStore((s) => s.author);
+  const totalPages = useSignupStore((s) => s.totalPages);
+  const user = useUserStore((s) => s.user);
   const [error, setError] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,18 +51,84 @@ export default function Page4() {
     setError("");
   };
 
-  const handleSubmit = () => {
-    const hasAnyValue = Object.values(weeklyPages).some((v) => v && parseInt(v) > 0);
-    if (!hasAnyValue) {
-      setError("Please enter at least one day’s reading plan.");
+  const handleSubmit = async () => {
+    // Validate book details
+    if (!bookName.trim() || !author.trim() || !totalPages.trim()) {
+      setError("Missing details from step 1. Please go back and fill them.");
       return;
     }
+
+    // Validate weekly plan
+    const hasAnyValue = Object.values(weeklyPages).some((v) => v && parseInt(v) > 0);
+    if (!hasAnyValue) {
+      setError("Please enter at least one day's reading plan.");
+      return;
+    }
+
+    if (!user?.id) {
+      setError("You must be signed in to add a book.");
+      return;
+    }
+
     setError("");
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+
+    try {
+      // Add book to database
+      const { data: book, error: bookError } = await BookService.addBook({
+        title: bookName,
+        author,
+        page_count: parseInt(totalPages, 10),
+      });
+
+      if (bookError || !book) {
+        setError("Failed to add book. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Add book to user's collection
+      const link = await BookService.addBookToUser(
+        user.id,
+        book.id,
+        "currently_reading"
+      );
+
+      if (link.error) {
+        setError("Failed to add book to your shelf. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Convert weeklyPages to the format needed (string -> number)
+      const weeklySchedule: Record<string, number> = {};
+      weekdays.forEach((day) => {
+        const pages = parseInt(weeklyPages[day] || "0", 10);
+        if (pages > 0) {
+          weeklySchedule[day] = pages;
+        }
+      });
+
+      // Save weekly reading plan
+      const planResult = await ReadingPlanService.createReadingPlan(
+        user.id,
+        book.id,
+        'weekly',
+        undefined,
+        weeklySchedule
+      );
+
+      if (planResult.error) {
+        // Log error but don't block navigation - plan creation is optional
+        console.error("Failed to save reading plan:", planResult.error);
+      }
+
       router.push("/(tabs)/Book/book-added");
-    }, 1000);
+      setLoading(false);
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (

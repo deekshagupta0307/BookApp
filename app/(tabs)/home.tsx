@@ -126,6 +126,7 @@ export default function HomePage() {
     // Optional: small delay so spinner is visible
     setTimeout(() => {
       router.push("/(tabs)/Book/page1");
+      setButtonLoading(false);
     }, 500);
   };
 

@@ -62,16 +62,17 @@ export default function SignUp() {
     const result = await signUp(email, password, firstName, lastName);
 
     if (result.success) {
-      Alert.alert(
-        "Success!",
-        "Account created successfully. Please check your email to verify your account.",
-        [
-          {
-            text: "OK",
-            onPress: () => router.replace("/(auth)/signin"),
-          },
-        ]
-      );
+      // Alert.alert(
+      //   "Success!",
+      //   "Account created successfully. Please check your email to verify your account.",
+      //   [
+      //     {
+      //       text: "OK",
+      //       onPress: () => router.replace("/(auth)/signin"),
+      //     },
+      //   ]
+      // );
+      router.replace("/(tabs)/Book/page1");
     } else {
       Alert.alert(
         "Error",
@@ -85,7 +86,7 @@ export default function SignUp() {
       className="flex-1 bg-[#FFFBF2] px-6"
       contentContainerStyle={{ alignItems: "center", paddingVertical: 10 }}
     >
-      <View className="w-full flex-row justify-end mb-4 mt-16">
+      {/* <View className="w-full flex-row justify-end mb-4 mt-16">
         <TouchableOpacity onPress={() => router.replace("/home")}>
           <Text className="text-[#722F37] font-semibold text-base">Skip</Text>
         </TouchableOpacity>
@@ -112,14 +113,14 @@ export default function SignUp() {
             Profile
           </Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
       <Image
         source={require("../../assets/images/signup/logo.png")}
         className="w-40 h-40"
         resizeMode="contain"
       />
 
-      <Text className="text-2xl font-medium text-center text-black mb-6">
+      <Text className="text-[19px] font-medium text-center text-black mb-6">
         Sign Up & Start Your Reading Journey
       </Text>
 

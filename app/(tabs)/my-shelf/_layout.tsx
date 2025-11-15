@@ -12,11 +12,13 @@ import { Stack } from "expo-router";
 export default function MyShelfLayout() {
   return (
     <Stack
+      initialRouteName="reading-now"
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
       }}
     >
+      <Stack.Screen name="index" />
       <Stack.Screen name="reading-now" />
     </Stack>
   );

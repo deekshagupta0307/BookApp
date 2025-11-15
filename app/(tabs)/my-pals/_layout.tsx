@@ -12,11 +12,13 @@ import { Stack } from "expo-router";
 export default function MyPalsLayout() {
   return (
     <Stack
+      initialRouteName="pals-page"
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
       }}
     >
+      <Stack.Screen name="index" />
       <Stack.Screen name="pals-page" />
       <Stack.Screen name="add-pal" />
       <Stack.Screen name="add-contacts" />

@@ -72,7 +72,7 @@ export default function SignUp() {
       //     },
       //   ]
       // );
-      router.replace("/(tabs)/Book/page1");
+      router.replace("/components/hello-page");
     } else {
       Alert.alert(
         "Error",

@@ -270,7 +270,7 @@ export default function ReadingNow() {
                 style={{ alignItems: "center" }}
               >
                 <TouchableOpacity
-                  onPress={() => router.push("/currently-reading")}
+                  onPress={() => router.push(`/currently-reading?bookId=${book.id}`)}
                   className="flex-1 flex-row border rounded-lg p-5 border-[#EFDFBB] bg-white"
                   style={{ minHeight: 120, opacity: editMode ? 0.8 : 1 }}
                 >

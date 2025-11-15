@@ -80,7 +80,7 @@ export default function Page1() {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <Text className="text-xl font-semibold ml-4">Add a Book</Text>
+          <Text className="text-xl font-semibold ml-4">Add</Text>
         </View>
 
         {/* Image */}

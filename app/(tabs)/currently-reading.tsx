@@ -1,41 +1,92 @@
-import React from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
+  ActivityIndicator,
   Dimensions,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import Svg, { Circle as SvgCircle, G } from "react-native-svg";
+import Svg, { G, Circle as SvgCircle } from "react-native-svg";
+import { BookService, UserBook } from "../../lib/books";
+import { useUserStore } from "../store/user-store";
 
 const { width } = Dimensions.get("window");
 
-const weekData = [
-  { day: "Mon", date: "1" },
-  { day: "Tue", date: "2" },
-  { day: "Wed", date: "3" },
-  { day: "Thu", date: "4" },
-  { day: "Fri", date: "5" },
-  { day: "Sat", date: "6" },
-  { day: "Sun", date: "7" },
-];
-
 export default function CurrentlyReading() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ bookId?: string }>();
+  const { user } = useUserStore();
+  const [currentBook, setCurrentBook] = useState<UserBook | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [readingSessions, setReadingSessions] = useState<any[]>([]);
 
-  const progress = 0.7;
+  // Fetch user's currently reading book
+  useEffect(() => {
+    const fetchCurrentBook = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        let bookToShow: UserBook | null = null;
+
+        // If bookId is provided, fetch that specific book
+        if (params.bookId) {
+          const { data: allBooks, error } = await BookService.getUserBooks(
+            user.id,
+            "currently_reading"
+          );
+
+          if (!error && allBooks) {
+            bookToShow = allBooks.find((book) => book.id === params.bookId) || null;
+          }
+        } else {
+          // If no bookId provided, get the first/most recent currently reading book
+          const { data, error } = await BookService.getUserBooks(
+            user.id,
+            "currently_reading"
+          );
+
+          if (!error && data && data.length > 0) {
+            bookToShow = data[0];
+          }
+        }
+
+        if (bookToShow) {
+          setCurrentBook(bookToShow);
+          
+          // Fetch reading sessions for this book
+          const { data: sessions, error: sessionsError } = 
+            await BookService.getUserReadingSessions(user.id, bookToShow.book_id);
+          if (!sessionsError && sessions) {
+            setReadingSessions(sessions);
+          }
+        } else {
+          setCurrentBook(null);
+        }
+      } catch (error) {
+        console.error("Error fetching current book:", error);
+        setCurrentBook(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCurrentBook();
+  }, [user?.id, params.bookId]);
+
+  // Calculate progress
+  const progress = currentBook ? currentBook.progress / 100 : 0;
   const size = 180;
   const strokeWidth = 10;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progressOffset = circumference - circumference * progress;
-
-  const angle = 2 * Math.PI * progress - Math.PI / 2;
-  const iconRadius = radius;
-  const endX = size / 2 + iconRadius * Math.cos(angle);
-  const endY = size / 2 + iconRadius * Math.sin(angle);
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString("en-US", {
@@ -44,6 +95,120 @@ export default function CurrentlyReading() {
     month: "short",
     year: "numeric",
   });
+
+  // Generate week data dynamically
+  const generateWeekData = () => {
+    const weekData = [];
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - currentDay + (currentDay === 0 ? -6 : 1)); // Start from Monday
+
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
+      const isToday = date.toDateString() === today.toDateString();
+      
+      weekData.push({
+        day: days[i],
+        date: date.getDate().toString(),
+        fullDate: date,
+        isToday,
+      });
+    }
+    
+    return weekData;
+  };
+
+  const weekData = generateWeekData();
+
+  // Calculate book statistics
+  const book = currentBook?.book;
+  const totalPages = book?.page_count || 0;
+  const completedPages = Math.round((progress * totalPages) / 100);
+  const pagesLeft = Math.max(0, totalPages - completedPages);
+
+  // Calculate estimated completion date (simple estimation)
+  const calculateCompletionDate = () => {
+    if (!currentBook || totalPages === 0 || pagesLeft === 0) return null;
+    
+    // Get average pages per day from reading sessions (last 7 days)
+    const last7Days = readingSessions.filter((session) => {
+      const sessionDate = new Date(session.session_date);
+      const daysDiff = (today.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24);
+      return daysDiff <= 7;
+    });
+    
+    if (last7Days.length === 0) return null;
+    
+    const avgPagesPerDay = last7Days.reduce((sum, s) => sum + s.pages_read, 0) / 7;
+    if (avgPagesPerDay <= 0) return null;
+    
+    const daysToComplete = Math.ceil(pagesLeft / avgPagesPerDay);
+    const completionDate = new Date(today);
+    completionDate.setDate(today.getDate() + daysToComplete);
+    
+    return completionDate;
+  };
+
+  const completionDate = calculateCompletionDate();
+  const daysToComplete = completionDate 
+    ? Math.ceil((completionDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" }}>
+        <ActivityIndicator size="large" color="#722F37" />
+      </View>
+    );
+  }
+
+  if (!currentBook || !book) {
+    return (
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          backgroundColor: "#fff",
+          padding: 16,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <View className="flex-row items-center justify-between mb-4 mt-10 w-full">
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={() => router.back()}>
+              <Image
+                source={require("../../assets/images/book/arrow-left.png")}
+                className="w-12 h-12"
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+            <Text className="text-xl font-semibold ml-4">Currently Reading</Text>
+          </View>
+        </View>
+        <Image
+          source={require("../../assets/images/signup/monkey4.png")}
+          className="w-48 h-48 mb-4"
+          resizeMode="contain"
+        />
+        <Text className="text-xl font-medium text-center mb-2">
+          No Book Currently Reading
+        </Text>
+        <Text className="text-[#141414] text-center mb-4 px-4 text-lg">
+          Add a book to start reading!
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/Book/page1")}
+          className="bg-[#722F37] w-full py-4 rounded-lg items-center justify-center"
+        >
+          <Text className="text-white font-bold text-center">Add a Book</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -62,7 +227,7 @@ export default function CurrentlyReading() {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <Text className="text-xl font-semibold ml-4">Add a Book</Text>
+          <Text className="text-xl font-semibold ml-4">Currently Reading</Text>
         </View>
         <TouchableOpacity>
           <Image
@@ -117,27 +282,27 @@ export default function CurrentlyReading() {
       </View>
 
       <Text className="text-2xl font-semibold text-center mb-2">
-        Harry Potter and the Philosopher&apos;s Stone
+        {book.title}
       </Text>
-      <Text className="text-center text-[#A1A1A1] mb-4">By J. K. Rowling</Text>
+      <Text className="text-center text-[#A1A1A1] mb-4">By {book.author}</Text>
 
       <View className="flex-row justify-center items-center p-4 mb-4">
         <View className="items-center flex-1">
-          <Text className="text-2xl">210</Text>
+          <Text className="text-2xl">{totalPages}</Text>
           <Text className="font-semibold text-[#141414] text-lg">
             Total Pages
           </Text>
         </View>
         <View className="h-20 w-px bg-gray-200" />
         <View className="items-center flex-1">
-          <Text className="text-2xl">300</Text>
+          <Text className="text-2xl">{completedPages}</Text>
           <Text className="font-semibold text-[#141414] text-lg">
             Completed
           </Text>
         </View>
         <View className="h-20 w-px bg-gray-200" />
         <View className="items-center flex-1">
-          <Text className="text-2xl">5</Text>
+          <Text className="text-2xl">{pagesLeft}</Text>
           <Text className="font-semibold text-[#141414] text-lg">
             Pages Left
           </Text>
@@ -145,26 +310,34 @@ export default function CurrentlyReading() {
       </View>
 
       <View className="mb-4">
-        <View className="flex-row items-center mb-2">
-          <Image
-            source={require("../../assets/images/book/clock.png")}
-            className="w-5 h-5 mr-2"
-            resizeMode="contain"
-          />
-          <Text className="text-[#141414] text-lg">
-            At your pace, you’ll finish in 30 days
-          </Text>
-        </View>
-        <View className="flex-row items-center">
-          <Image
-            source={require("../../assets/images/book/calendar.png")}
-            className="w-5 h-5 mr-2"
-            resizeMode="contain"
-          />
-          <Text className="text-[#141414] text-lg">
-            Completion Date: Nov 30, 2025
-          </Text>
-        </View>
+        {daysToComplete !== null && (
+          <View className="flex-row items-center mb-2">
+            <Image
+              source={require("../../assets/images/book/clock.png")}
+              className="w-5 h-5 mr-2"
+              resizeMode="contain"
+            />
+            <Text className="text-[#141414] text-lg">
+              At your pace, you'll finish in {daysToComplete} {daysToComplete === 1 ? 'day' : 'days'}
+            </Text>
+          </View>
+        )}
+        {completionDate && (
+          <View className="flex-row items-center">
+            <Image
+              source={require("../../assets/images/book/calendar.png")}
+              className="w-5 h-5 mr-2"
+              resizeMode="contain"
+            />
+            <Text className="text-[#141414] text-lg">
+              Completion Date: {completionDate.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </Text>
+          </View>
+        )}
       </View>
 
       <View className="border-t border-gray-200 my-4" />
@@ -187,7 +360,14 @@ export default function CurrentlyReading() {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {weekData.map((day, idx) => {
-          const isToday = day.day === "Wed";
+          // Get pages read for this day from reading sessions
+          const dayStr = day.fullDate.toISOString().split("T")[0];
+          const daySessions = readingSessions.filter((session) => {
+            const sessionDate = new Date(session.session_date).toISOString().split("T")[0];
+            return sessionDate === dayStr;
+          });
+          const pagesRead = daySessions.reduce((sum, s) => sum + s.pages_read, 0);
+
           return (
             <View
               key={idx}
@@ -198,7 +378,7 @@ export default function CurrentlyReading() {
                   height: 100,
                   width: 50,
                   borderWidth: 1,
-                  borderColor: "#EFDFBB",
+                  borderColor: day.isToday ? "#722F37" : "#EFDFBB",
                   borderRadius: 8,
                   overflow: "hidden",
                 }}
@@ -214,14 +394,14 @@ export default function CurrentlyReading() {
                   <Text
                     style={{ color: "#555", fontSize: 16, fontWeight: "bold" }}
                   >
-                    -
+                    {pagesRead > 0 ? pagesRead : "-"}
                   </Text>
                 </View>
 
                 <View
                   style={{
                     flex: 1.2,
-                    backgroundColor: "#FDF6E7",
+                    backgroundColor: day.isToday ? "#FDF6E7" : "#FDF6E7",
                     justifyContent: "center",
                     alignItems: "center",
                     borderTopLeftRadius: 8,
@@ -234,7 +414,7 @@ export default function CurrentlyReading() {
                 </View>
               </View>
 
-              {isToday && (
+              {day.isToday && (
                 <View
                   style={{
                     width: 14,

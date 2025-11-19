@@ -1,17 +1,18 @@
+import { BlurView } from "expo-blur";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  ScrollView,
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
   Dimensions,
+  Image,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { BlurView } from "expo-blur";
+import { useUserStore } from "../../store/user-store";
 
 const { width } = Dimensions.get("window");
 
@@ -33,6 +34,7 @@ const menuItems: { id: string; title: string; navigateTo: MenuRoute }[] = [
 export default function MyProfile() {
   const router = useRouter();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const signOut = useUserStore((state) => state.signOut);
 
   const handleMenuPress = (item: (typeof menuItems)[0]) => {
     if (item.navigateTo) {
@@ -42,10 +44,14 @@ export default function MyProfile() {
     }
   };
 
-  const handleConfirmLogout = () => {
+  const handleConfirmLogout = async () => {
     setLogoutModalVisible(false);
-    console.log("User logged out");
-    // Add actual logout logic here
+    try {
+      await signOut();
+      router.replace("/(auth)/signin");
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
   };
 
   return (

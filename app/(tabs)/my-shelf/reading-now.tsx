@@ -125,19 +125,6 @@ export default function ReadingNow() {
         <View style={{ backgroundColor: "#722F37", padding: 16 }}>
           <View className="flex-row justify-between items-center mt-10">
             <Text className="text-white font-semibold text-2xl">My Shelf</Text>
-            <View
-              style={{
-                backgroundColor: "#FDF6E7",
-                padding: 6,
-                borderRadius: 4,
-              }}
-            >
-              <Image
-                source={require("../../../assets/images/home/menu.png")}
-                style={{ width: 24, height: 24 }}
-                resizeMode="contain"
-              />
-            </View>
           </View>
 
           <View
@@ -228,7 +215,7 @@ export default function ReadingNow() {
             </Text>
             <View className="flex-row space-x-4">
               <TouchableOpacity
-                onPress={() => router.push("/(tabs)/Book/page1")}
+                onPress={() => router.push("/(tabs)/book/page1")}
               >
                 <Text className="text-[#722F37] underline font-semibold mr-2">
                   Add Book

@@ -123,7 +123,7 @@ export default function Page4() {
         console.error("Failed to save reading plan:", planResult.error);
       }
 
-      router.push("/(tabs)/Book/book-added");
+      router.push("/(tabs)/book/book-added");
       setLoading(false);
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");

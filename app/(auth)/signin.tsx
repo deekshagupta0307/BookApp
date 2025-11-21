@@ -210,7 +210,7 @@ export default function SignIn() {
         </TouchableOpacity>
       </View>
 
-      <View className="w-full py-4 items-center border-gray-200 mt-14">
+      <View className="w-full py-4 items-center border-gray-200 mt-16">
         <Text className="text-center text-black text-sm px-3 font-semibold">
           By continuing, you agree to our{" "}
           <Text

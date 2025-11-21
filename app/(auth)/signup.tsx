@@ -84,7 +84,7 @@ export default function SignUp() {
   return (
     <ScrollView
       className="flex-1 bg-[#FFFBF2] px-6"
-      contentContainerStyle={{ alignItems: "center", paddingVertical: 10 }}
+      contentContainerStyle={{ alignItems: "center", paddingVertical: 20 }}
     >
       {/* <View className="w-full flex-row justify-end mb-4 mt-16">
         <TouchableOpacity onPress={() => router.replace("/home")}>
@@ -238,7 +238,7 @@ export default function SignUp() {
       </View>
 
       {/* Terms & Privacy */}
-      <View className="w-full py-4 items-center border-gray-200 mb-8">
+      <View className="w-full py-4 items-center border-gray-200 mt-8">
         <Text className="text-center text-black text-sm px-3 font-semibold">
           By continuing, you agree to our{" "}
           <Text

@@ -127,7 +127,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="Book"
+        name="book"
         options={{
           href: null,
         }}

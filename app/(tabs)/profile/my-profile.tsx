@@ -1,283 +1,123 @@
-import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import {
   Dimensions,
   Image,
-  Modal,
-  Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useUserStore } from "../../store/user-store";
+import { ChevronRight } from "lucide-react-native";
 
 const { width } = Dimensions.get("window");
 
-type MenuRoute =
-  | "/profile/favourites"
-  | "/profile/achievements"
-  | "/profile/settings"
-  | "/profile/privacy-policy"
-  | null;
-
-const menuItems: { id: string; title: string; navigateTo: MenuRoute }[] = [
-  { id: "1", title: "Favourites", navigateTo: "/profile/favourites" },
-  { id: "2", title: "Achievements", navigateTo: "/profile/achievements" },
-  { id: "3", title: "Settings", navigateTo: "/profile/settings" },
-  { id: "4", title: "Privacy Policy", navigateTo: "/profile/privacy-policy" },
-  { id: "5", title: "Logout", navigateTo: null },
-];
-
 export default function MyProfile() {
   const router = useRouter();
-  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
-  const signOut = useUserStore((state) => state.signOut);
-
-  const handleMenuPress = (item: (typeof menuItems)[0]) => {
-    if (item.navigateTo) {
-      router.push(item.navigateTo);
-    } else {
-      setLogoutModalVisible(true);
-    }
-  };
-
-  const handleConfirmLogout = async () => {
-    setLogoutModalVisible(false);
-    try {
-      await signOut();
-      router.replace("/(auth)/signin");
-    } catch (error) {
-      console.error("Error during logout:", error);
-    }
-  };
 
   return (
-    <>
-      <ScrollView style={{ flex: 1, backgroundColor: "#FDF6E7" }}>
-        {/* Top Background Section */}
-        <View style={{ width: "100%", height: 300, position: "relative" }}>
-          <Image
-            source={require("../../../assets/images/profile/bg.png")}
-            style={{ width: "100%", height: "100%" }}
-            resizeMode="cover"
-          />
+    <ScrollView className="flex-1 bg-white">
+      <View className="w-full h-24 bg-[#722F37] flex-row items-center justify-between px-5 mt-16">
+        <Text className="text-white text-2xl font-bold">My Profile</Text>
+      </View>
 
-          {/* Centered Icon */}
-          <Image
-            source={require("../../../assets/images/profile/icon.png")}
-            style={{
-              width: 80,
-              height: 80,
-              position: "absolute",
-              top: 120,
-              left: width / 2 - 40,
-              borderRadius: 40,
-            }}
-            resizeMode="contain"
-          />
+      <View className="flex-row px-5 py-6 items-center">
+        <Image
+          source={require("../../../assets/images/profile/user.png")}
+          className="w-16 h-16 rounded-full"
+          resizeMode="contain"
+        />
 
-          {/* Name below Icon */}
-          <Text
-            style={{
-              position: "absolute",
-              top: 210,
-              width: "100%",
-              textAlign: "center",
-              fontSize: 20,
-              fontWeight: "600",
-              color: "#FFFFFF",
-            }}
-          >
-            Kunal Saini
+        <View className="ml-4">
+          <Text className="text-lg font-semibold">deeksha@123</Text>
+          <Text className="text-gray-500 mt-1">123456</Text>
+        </View>
+      </View>
+
+      <View className="flex-row flex-wrap justify-between px-5 mt-2">
+        <View className="w-[48%] border border-[#EFDFBB] rounded-xl py-5 mb-4 items-center">
+          <Text className="text-lg text-gray-700 mb-2 font-semibold">
+            Finished
           </Text>
+          <Text className="text-md">1 Book(s)</Text>
         </View>
 
-        {/* White Card */}
-        <View
-          style={{
-            width: width * 0.8,
-            backgroundColor: "#fff",
-            alignSelf: "center",
-            marginTop: -50,
-            borderRadius: 20,
-            padding: 16,
-          }}
+        <View className="w-[48%] border border-[#EFDFBB] rounded-xl py-5 mb-4 items-center">
+          <Text className="text-lg text-gray-700 mb-2 font-semibold">
+            Total Read
+          </Text>
+          <Text className="text-md">1K Page(s)</Text>
+        </View>
+
+        <View className="w-[48%] border border-[#EFDFBB] rounded-xl py-5 mb-4 items-center">
+          <Text className="text-lg text-gray-700 mb-2 font-semibold">
+            Badges
+          </Text>
+          <Text className="text-md">12</Text>
+        </View>
+
+        <View className="w-[48%] border border-[#EFDFBB] rounded-xl py-5 mb-4 items-center">
+          <Text className="text-lg text-gray-700 mb-2 font-semibold">
+            Days Streak
+          </Text>
+          <Text className="text-md">50</Text>
+        </View>
+      </View>
+
+      <View className="px-5 mt-4">
+        <TouchableOpacity
+          className="flex-row justify-between items-center py-4"
+          onPress={() => router.push("/my-shelf")}
         >
-          {/* Top Row */}
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginBottom: 40,
-            }}
-          >
-            <View style={{ alignItems: "flex-start" }}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ fontWeight: "600", marginRight: 6 }}>20</Text>
-                <Image
-                  source={require("../../../assets/images/profile/icon1.png")}
-                  style={{ width: 16, height: 16 }}
-                  resizeMode="contain"
-                />
-              </View>
-              <Text style={{ color: "#B5B6C4", marginTop: 4 }}>Books read</Text>
-            </View>
-
-            <View style={{ alignItems: "flex-end" }}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ fontWeight: "600", marginRight: 6 }}>1000</Text>
-                <Image
-                  source={require("../../../assets/images/profile/icon2.png")}
-                  style={{ width: 16, height: 16 }}
-                  resizeMode="contain"
-                />
-              </View>
-              <Text style={{ color: "#B5B6C4", marginTop: 4 }}>Pages read</Text>
-            </View>
+          <View className="flex-row items-center mb-4">
+            <Image
+              source={require("../../../assets/images/profile/book.png")}
+              className="w-6 h-6 mr-3"
+            />
+            <Text className="text-lg font-semibold">My Shelf</Text>
           </View>
 
-          {/* Bottom Row */}
-          <View
-            style={{ flexDirection: "row", justifyContent: "space-between" }}
-          >
-            <View style={{ alignItems: "flex-start" }}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ fontWeight: "600", marginRight: 6 }}>
-                  Pages read
-                </Text>
-                <Image
-                  source={require("../../../assets/images/profile/icon3.png")}
-                  style={{ width: 16, height: 16 }}
-                  resizeMode="contain"
-                />
-              </View>
-              <Text style={{ color: "#B5B6C4", marginTop: 4 }}>Badges</Text>
-            </View>
+          <ChevronRight size={20} color="#000" />
+        </TouchableOpacity>
 
-            <View style={{ alignItems: "flex-end" }}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ fontWeight: "600", marginRight: 6 }}>50</Text>
-                <Image
-                  source={require("../../../assets/images/profile/icon4.png")}
-                  style={{ width: 14, height: 14 }}
-                  resizeMode="contain"
-                />
-              </View>
-              <Text style={{ color: "#B5B6C4", marginTop: 4 }}>
-                Days Streak
-              </Text>
-            </View>
+        <View className="w-full h-[1px] bg-gray-200" />
+
+        {/* Privacy Policy */}
+        <TouchableOpacity
+          className="flex-row justify-between items-center py-4"
+          onPress={() => router.push("/profile/privacy-policy")}
+        >
+          <View className="flex-row items-center mt-4">
+            <Image
+              source={require("../../../assets/images/profile/secure.png")}
+              className="w-6 h-6 mr-3"
+            />
+            <Text className="text-lg font-semibold">Privacy Policy</Text>
           </View>
-        </View>
 
-        {/* Menu Items */}
-        <View style={{ marginTop: 30, paddingHorizontal: 40 }}>
-          {menuItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                paddingVertical: 16,
-              }}
-              onPress={() => handleMenuPress(item)}
-            >
-              <Text
-                style={{ fontSize: 16, fontWeight: "600", color: "#141414" }}
-              >
-                {item.title}
-              </Text>
-              <Image
-                source={require("../../../assets/images/home/arrow-right.png")}
-                style={{ width: 16, height: 16 }}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
+          <ChevronRight size={20} color="#000" />
+        </TouchableOpacity>
+      </View>
 
-      {/* Logout Modal */}
-      <Modal transparent animationType="fade" visible={logoutModalVisible}>
-        <View style={{ flex: 1 }}>
-          {/* Fullscreen Blur */}
-          <BlurView
-            intensity={80}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
+      <View className="px-5 mt-6 mb-10">
+        <TouchableOpacity
+          className="bg-[#722F37] py-4 rounded-xl mb-4"
+          onPress={() => router.push("/profile/settings")}
+        >
+          <Text className="text-white text-center font-semibold text-base">
+            Profile Settings
+          </Text>
+        </TouchableOpacity>
 
-          {/* Centered Modal Box */}
-          <View
-            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-          >
-            <View
-              style={{
-                width: width * 0.8,
-                backgroundColor: "#fff",
-                borderRadius: 20,
-                padding: 20,
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{ fontSize: 18, fontWeight: "600", marginBottom: 16 }}
-              >
-                Are you sure?
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  width: "100%",
-                }}
-              >
-                {/* Yes Button */}
-                <Pressable
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: "#722F37",
-                    borderRadius: 10,
-                    marginRight: 8,
-                  }}
-                  onPress={handleConfirmLogout}
-                >
-                  <Text
-                    style={{
-                      textAlign: "center",
-                      color: "#fff",
-                      fontWeight: "600",
-                    }}
-                  >
-                    Yes
-                  </Text>
-                </Pressable>
-
-                {/* No Button */}
-                <Pressable
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: "#ccc",
-                    borderRadius: 10,
-                  }}
-                  onPress={() => setLogoutModalVisible(false)}
-                >
-                  <Text style={{ textAlign: "center", fontWeight: "600" }}>
-                    No
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </>
+        <TouchableOpacity
+          className="border border-[#722F37] py-4 rounded-xl"
+          onPress={() => console.log("Logout")}
+        >
+          <Text className="text-[#722F37] text-center font-semibold text-base">
+            Logout
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }

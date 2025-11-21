@@ -6,7 +6,9 @@ export default function PrivacyPolicy() {
   const router = useRouter();
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: "#FDF6E7", padding: 20 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: "#FFFFFF", padding: 18 }}
+    >
       {/* Back Arrow + Heading */}
       <View
         style={{
@@ -28,20 +30,36 @@ export default function PrivacyPolicy() {
         </Text>
       </View>
 
-      {/* Paragraph below heading */}
-      <Text
-        style={{
-          fontSize: 20,
-          fontWeight: "400",
-          lineHeight: 26,
-          color: "#000000",
-          textAlign: "center",
-          marginBottom: 24,
-          marginTop: 36,
-        }}
-      >
-        Welcome to our Reading Tracker application. We are committed to protecting your privacy, and this Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our service. Please read this policy carefully. If you do not agree with the terms outlined here, we kindly request that you refrain from accessing or using the application.
-      </Text>
+      {/* Bullet Points */}
+      <View style={{ marginTop: 24 }}>
+        <Text style={{ fontSize: 16, lineHeight: 24, marginBottom: 14 }}>
+          ● We are committed to protecting your privacy and safeguarding your personal information.
+        </Text>
+
+        <Text style={{ fontSize: 16, lineHeight: 24, marginBottom: 14 }}>
+          ● Information may be collected to improve the functionality, performance, and user experience of the Reading Tracker application.
+        </Text>
+
+        <Text style={{ fontSize: 16, lineHeight: 24, marginBottom: 14 }}>
+          ● We may collect data such as your profile details, reading logs, preferences, and device information.
+        </Text>
+
+        <Text style={{ fontSize: 16, lineHeight: 24, marginBottom: 14 }}>
+          ● Your information will not be sold, shared, or disclosed unless required by law or necessary for the functionality of the app.
+        </Text>
+
+        <Text style={{ fontSize: 16, lineHeight: 24, marginBottom: 14 }}>
+          ● We use reasonable security practices to protect your information against unauthorized access or misuse.
+        </Text>
+
+        <Text style={{ fontSize: 16, lineHeight: 24, marginBottom: 14 }}>
+          ● Continued use of the application indicates acceptance of the terms outlined in this Privacy Policy.
+        </Text>
+
+        <Text style={{ fontSize: 16, lineHeight: 24, marginBottom: 14 }}>
+          ● If you do not agree with any part of this policy, please discontinue using the application.
+        </Text>
+      </View>
     </ScrollView>
   );
 }

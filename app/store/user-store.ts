@@ -20,6 +20,8 @@ interface UserState {
   // Auth methods
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signInWithGoogle: () => Promise<{ success: boolean; error?: string; url?: string }>;
+  signInWithApple: () => Promise<{ success: boolean; error?: string; url?: string }>;
   signOut: () => Promise<void>;
   initializeAuth: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
@@ -107,6 +109,50 @@ interface UserState {
       });
 
       return { success: true };
+    } catch (error) {
+      set({ isLoading: false });
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "An unexpected error occurred" 
+      };
+    }
+  },
+
+  signInWithGoogle: async () => {
+    set({ isLoading: true });
+    
+    try {
+      const { error, url } = await AuthService.signInWithGoogle();
+      
+      if (error) {
+        set({ isLoading: false });
+        return { success: false, error: error.message, url };
+      }
+
+      set({ isLoading: false });
+      return { success: true, url };
+    } catch (error) {
+      set({ isLoading: false });
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "An unexpected error occurred" 
+      };
+    }
+  },
+
+  signInWithApple: async () => {
+    set({ isLoading: true });
+    
+    try {
+      const { error, url } = await AuthService.signInWithApple();
+      
+      if (error) {
+        set({ isLoading: false });
+        return { success: false, error: error.message, url };
+      }
+
+      set({ isLoading: false });
+      return { success: true, url };
     } catch (error) {
       set({ isLoading: false });
       return { 

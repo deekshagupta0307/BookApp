@@ -1,6 +1,8 @@
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -9,11 +11,27 @@ import {
   View,
 } from "react-native";
 import { ChevronRight } from "lucide-react-native";
+import { useUserStore } from "../../store/user-store";
 
 const { width } = Dimensions.get("window");
 
 export default function MyProfile() {
   const router = useRouter();
+  const signOut = useUserStore((s) => s.signOut);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await signOut();
+      router.replace("/(auth)/signin");
+    } catch (error) {
+      console.error("Logout error:", error);
+      Alert.alert("Error", "Failed to logout. Please try again.");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <ScrollView className="flex-1 bg-white">
@@ -111,11 +129,16 @@ export default function MyProfile() {
 
         <TouchableOpacity
           className="border border-[#722F37] py-4 rounded-xl"
-          onPress={() => console.log("Logout")}
+          onPress={handleLogout}
+          disabled={isLoggingOut}
         >
-          <Text className="text-[#722F37] text-center font-semibold text-base">
-            Logout
-          </Text>
+          {isLoggingOut ? (
+            <ActivityIndicator size="small" color="#722F37" />
+          ) : (
+            <Text className="text-[#722F37] text-center font-semibold text-base">
+              Logout
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </ScrollView>

@@ -154,7 +154,7 @@ export default function HomePage() {
   const handleAddBookPress = () => {
     setButtonLoading(true);
     setTimeout(() => {
-      router.push("/(tabs)/book/page1");
+      router.push("/(tabs)/Book/page1");
       setButtonLoading(false);
     }, 500);
   };
@@ -170,7 +170,7 @@ export default function HomePage() {
             resizeMode="contain"
           />
           <Image
-            source={require("../../assets/images/home/Pagepal.png")}
+            source={require("../../assets/images/home/pagepal.png")}
             className="w-20 ml-2"
             resizeMode="contain"
           />
@@ -292,7 +292,7 @@ export default function HomePage() {
                   Currently Reading
                 </Text>
 
-                <TouchableOpacity onPress={() => router.push("/(tabs)/book/page1")}>
+                <TouchableOpacity onPress={() => router.push("/(tabs)/Book/page1")}>
                   <Text
                     style={{
                       color: "#722F37",

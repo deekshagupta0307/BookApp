@@ -41,7 +41,7 @@ export default function Page2() {
       {/* Buttons */}
       <View className="px-6 gap-4">
         <TouchableOpacity
-          onPress={() => router.push("/(tabs)/Book/page3")}
+          onPress={() => router.push("/(tabs)/book/page3")}
           className="w-full h-14 rounded-lg items-center justify-center"
           style={{ backgroundColor: "#722F37" }}
         >
@@ -51,7 +51,7 @@ export default function Page2() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => router.push("/(tabs)/Book/page4")}
+          onPress={() => router.push("/(tabs)/book/page4")}
           className="w-full h-14 rounded-lg items-center justify-center border"
           style={{ borderColor: "#722F37", backgroundColor: "transparent" }}
         >

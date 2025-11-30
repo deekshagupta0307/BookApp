@@ -3,6 +3,7 @@ import { useUserStore } from "@/app/store/user-store";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -29,6 +30,7 @@ export default function Page3() {
 
   const [error, setError] = useState("");
   const [focused, setFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const increment = () => {
     let num = parseInt(everydayPages) || 0;
@@ -87,6 +89,9 @@ export default function Page3() {
       return;
     }
 
+    setError("");
+    setLoading(true);
+
     // Insert book, then link to user as currently_reading
     const { data: book, error } = await BookService.addBook({
       title: bookName,
@@ -107,17 +112,17 @@ export default function Page3() {
       return;
     }
 
-    // Save everyday reading plan
-    const planResult = await ReadingPlanService.createReadingPlan(
-      userId,
-      book.id,
-      'everyday',
-      parseInt(everydayPages, 10)
-    );
-    if (planResult.error) {
-      // Log error but don't block navigation - plan creation is optional
-      console.error("Failed to save reading plan:", planResult.error);
-    }
+      // Save everyday reading plan
+      const planResult = await ReadingPlanService.createReadingPlan(
+        userId,
+        book.id,
+        'everyday',
+        parseInt(everydayPages, 10)
+      );
+      if (planResult.error) {
+        // Log error but don't block navigation - plan creation is optional
+        console.error("Failed to save reading plan:", planResult.error);
+      }
 
     router.push("/(tabs)/Book/book-added");
   };
@@ -201,10 +206,15 @@ export default function Page3() {
             <TouchableOpacity
               onPress={handleSubmit}
               className="bg-[#722F37] w-full py-4 rounded-xl"
+              disabled={loading}
             >
-              <Text className="text-white font-bold text-center text-lg">
-                Add a Book
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white font-bold text-center text-lg">
+                  Add a Book
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>

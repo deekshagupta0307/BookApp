@@ -18,9 +18,11 @@ const { width } = Dimensions.get("window");
 export default function HomePage() {
   const firstName = useUserStore((s) => s.firstName);
   const { user } = useUserStore();
-  const router = useRouter(); // initialize router
+  const router = useRouter();
   const [buttonLoading, setButtonLoading] = useState(false);
-  const [currentlyReadingBooks, setCurrentlyReadingBooks] = useState<UserBook[]>([]);
+  const [currentlyReadingBooks, setCurrentlyReadingBooks] = useState<
+    UserBook[]
+  >([]);
   const [finishedBooks, setFinishedBooks] = useState<UserBook[]>([]);
   const [pagesReadToday, setPagesReadToday] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -102,7 +104,9 @@ export default function HomePage() {
       return (
         <TouchableOpacity
           key={userBook.id}
-          onPress={() => router.push(`/currently-reading?bookId=${userBook.id}`)}
+          onPress={() =>
+            router.push(`/currently-reading?bookId=${userBook.id}`)
+          }
           className="flex-row border rounded-lg p-5 mb-4 border-[#EFDFBB] bg-white"
           style={{ minHeight: 120 }}
         >
@@ -120,6 +124,7 @@ export default function HomePage() {
               resizeMode="contain"
             />
           )}
+
           <View className="flex-1 justify-center">
             <Text
               numberOfLines={1}
@@ -129,11 +134,7 @@ export default function HomePage() {
               {book.title}
             </Text>
 
-            <Text
-              className="text-[#141414] mb-4"
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
+            <Text className="text-[#141414] mb-4" numberOfLines={1}>
               By {book.author}
             </Text>
 
@@ -172,22 +173,20 @@ export default function HomePage() {
 
   const handleAddBookPress = () => {
     setButtonLoading(true);
-    // Optional: small delay so spinner is visible
     setTimeout(() => {
-      router.push("/(tabs)/Book/page1");
+      router.push("/(tabs)/book/page1");
       setButtonLoading(false);
     }, 500);
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={{ flexGrow: 1, backgroundColor: "#FFFFFF" }}
-    >
-      <View className="bg-[#722F37] p-6">
-        <View className="flex-row items-center bg-[#FDF6E7] px-4 py-2 rounded-lg mt-12">
+    <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: "#FFFFFF" }}>
+      {/* Top Header */}
+      <View className="bg-[#722F37] p-6 pt-16">
+        <View className="flex-row items-center">
           <Image
             source={require("../../assets/images/home/logo.png")}
-            className="w-8 h-8 ml-2"
+            className="w-8 h-8"
             resizeMode="contain"
           />
           <Image
@@ -195,15 +194,9 @@ export default function HomePage() {
             className="w-20 ml-2"
             resizeMode="contain"
           />
-          <View className="flex-1" />
-          <Image
-            source={require("../../assets/images/home/menu.png")}
-            className="w-7 h-7 mr-2"
-            resizeMode="contain"
-          />
         </View>
 
-        <View className="flex-row mt-4 justify-between items-center">
+        <View className="flex-row justify-between items-center">
           <View className="flex-1 pr-4">
             <Text className="text-white text-3xl font-semibold mb-2">
               Welcome {firstName || "Friend"}!
@@ -212,6 +205,7 @@ export default function HomePage() {
               What’s on Your Mind Today?
             </Text>
           </View>
+
           <Image
             source={require("../../assets/images/signup/monkey5.png")}
             className="w-24 h-24"
@@ -220,18 +214,30 @@ export default function HomePage() {
         </View>
       </View>
 
-      <View className="px-6 mt-4">
-        <Text className="text-[#141414] text-base">
+      {/* Date + Fire */}
+      <View className="flex-row justify-between items-center px-6 mt-4">
+        <Text className="text-[#141414] text-lg">
           <Text className="font-bold">Today: </Text>
           {formattedDate}
         </Text>
+
+        <View className="flex-row items-center px-4 py-2 rounded-full border border-[#EFDFBB] bg-[#FDF6E7]">
+          <Image
+            source={require("../../assets/images/home/fire.png")}
+            className="w-5 h-5 mr-2"
+            resizeMode="contain"
+          />
+          <Text className="font-semibold text-[#141414]">5</Text>
+        </View>
       </View>
 
+      {/* Tabs - NOW NON-CLICKABLE */}
       <View className="flex-row justify-between mb-4 p-6">
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {["today", "reading", "finished"].map((tab) => {
             let title = "";
             let desc = "";
+
             if (tab === "today") {
               title = "Read Today";
               desc = `${pagesReadToday} Page(s)`;
@@ -247,6 +253,7 @@ export default function HomePage() {
 
             return (
               <View
+              <View
                 key={tab}
                 className="w-[140] mr-4 p-4 rounded-lg border bg-white border-[#EFDFBB]"
               >
@@ -261,6 +268,7 @@ export default function HomePage() {
                 <Text className="text-center text-sm mt-1 text-[#141414]">
                   {desc}
                 </Text>
+              </View>
               </View>
             );
           })}

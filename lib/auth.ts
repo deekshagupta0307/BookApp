@@ -133,4 +133,40 @@ export class AuthService {
       return { error: error as AuthError };
     }
   }
+
+  // Sign in with Google OAuth - returns URL to open in browser
+  static async signInWithGoogle(): Promise<{ error: AuthError | null; url?: string }> {
+    try {
+      const redirectTo = `${process.env.EXPO_PUBLIC_APP_SCHEME || 'bookapp'}://auth/callback`;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      return { error, url: data?.url };
+    } catch (error) {
+      return { error: error as AuthError };
+    }
+  }
+
+  // Sign in with Apple OAuth - returns URL to open in browser
+  static async signInWithApple(): Promise<{ error: AuthError | null; url?: string }> {
+    try {
+      const redirectTo = `${process.env.EXPO_PUBLIC_APP_SCHEME || 'bookapp'}://auth/callback`;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      return { error, url: data?.url };
+    } catch (error) {
+      return { error: error as AuthError };
+    }
+  }
 }

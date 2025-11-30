@@ -1,14 +1,10 @@
-import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
   Image,
-  Modal,
-  Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -18,21 +14,6 @@ import { supabase } from "../../../lib/supabase";
 import { useUserStore } from "../../store/user-store";
 
 const { width } = Dimensions.get("window");
-
-type MenuRoute =
-  | "/profile/favourites"
-  | "/profile/achievements"
-  | "/profile/settings"
-  | "/profile/privacy-policy"
-  | null;
-
-const menuItems: { id: string; title: string; navigateTo: MenuRoute }[] = [
-  { id: "1", title: "Favourites", navigateTo: "/profile/favourites" },
-  { id: "2", title: "Achievements", navigateTo: "/profile/achievements" },
-  { id: "3", title: "Settings", navigateTo: "/profile/settings" },
-  { id: "4", title: "Privacy Policy", navigateTo: "/profile/privacy-policy" },
-  { id: "5", title: "Logout", navigateTo: null },
-];
 
 export default function MyProfile() {
   const router = useRouter();
@@ -270,6 +251,7 @@ export default function MyProfile() {
           >
             {displayName}
           </Text>
+          <Text className="text-md">1 Book(s)</Text>
         </View>
 
         {/* White Card */}
@@ -348,113 +330,35 @@ export default function MyProfile() {
               </Text>
             </View>
           </View>
-        </View>
 
-        {/* Menu Items */}
-        <View style={{ marginTop: 30, paddingHorizontal: 40 }}>
-          {menuItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                paddingVertical: 16,
-              }}
-              onPress={() => handleMenuPress(item)}
-            >
-              <Text
-                style={{ fontSize: 16, fontWeight: "600", color: "#141414" }}
-              >
-                {item.title}
-              </Text>
-              <Image
-                source={require("../../../assets/images/home/arrow-right.png")}
-                style={{ width: 16, height: 16 }}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
+          <ChevronRight size={20} color="#000" />
+        </TouchableOpacity>
+      </View>
 
-      {/* Logout Modal */}
-      <Modal transparent animationType="fade" visible={logoutModalVisible}>
-        <View style={{ flex: 1 }}>
-          {/* Fullscreen Blur */}
-          <BlurView
-            intensity={80}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
+      <View className="px-5 mt-6 mb-10">
+        <TouchableOpacity
+          className="bg-[#722F37] py-4 rounded-xl mb-4"
+          onPress={() => router.push("/profile/settings")}
+        >
+          <Text className="text-white text-center font-semibold text-base">
+            Profile Settings
+          </Text>
+        </TouchableOpacity>
 
-          {/* Centered Modal Box */}
-          <View
-            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-          >
-            <View
-              style={{
-                width: width * 0.8,
-                backgroundColor: "#fff",
-                borderRadius: 20,
-                padding: 20,
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{ fontSize: 18, fontWeight: "600", marginBottom: 16 }}
-              >
-                Are you sure?
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  width: "100%",
-                }}
-              >
-                {/* Yes Button */}
-                <Pressable
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: "#722F37",
-                    borderRadius: 10,
-                    marginRight: 8,
-                  }}
-                  onPress={handleConfirmLogout}
-                >
-                  <Text
-                    style={{
-                      textAlign: "center",
-                      color: "#fff",
-                      fontWeight: "600",
-                    }}
-                  >
-                    Yes
-                  </Text>
-                </Pressable>
-
-                {/* No Button */}
-                <Pressable
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: "#ccc",
-                    borderRadius: 10,
-                  }}
-                  onPress={() => setLogoutModalVisible(false)}
-                >
-                  <Text style={{ textAlign: "center", fontWeight: "600" }}>
-                    No
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </>
+        <TouchableOpacity
+          className="border border-[#722F37] py-4 rounded-xl"
+          onPress={handleLogout}
+          disabled={isLoggingOut}
+        >
+          {isLoggingOut ? (
+            <ActivityIndicator size="small" color="#722F37" />
+          ) : (
+            <Text className="text-[#722F37] text-center font-semibold text-base">
+              Logout
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }

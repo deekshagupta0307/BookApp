@@ -58,7 +58,7 @@ export default function Page1() {
         setBookName(fields.bookName.trim());
         setAuthor(fields.authorName.trim());
         setTotalPages(fields.numberOfPages.trim());
-        router.push("/(tabs)/Book/page2");
+        router.push("/(tabs)/book/page2");
       }, 1000);
     }
   };

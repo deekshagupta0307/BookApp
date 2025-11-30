@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { View, Text, TouchableOpacity, Image } from "react-native";
 import { useRouter } from "expo-router";
+import { Image, Text, TouchableOpacity, View } from "react-native";
 import ProgressBar from "./progress-bar";
 
 export default function Signup4() {
@@ -8,7 +7,7 @@ export default function Signup4() {
 
   return (
     <View className="flex-1 bg-[#FFFBF2] p-6">
-      <ProgressBar step={4} totalSteps={4} />
+      <ProgressBar step={2} totalSteps={2} />
 
       <View className="flex-1 items-center justify-center">
         <Image

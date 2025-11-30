@@ -104,8 +104,15 @@ export default function Page4() {
         page_count: parseInt(totalPages, 10),
       });
 
-      if (bookError || !book) {
-        setError("Failed to add book. Please try again.");
+      if (bookError) {
+        console.error("Book insertion error:", bookError);
+        setError(`Failed to add book: ${bookError.message || "Please try again."}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!book) {
+        setError("Failed to add book. No data returned.");
         setLoading(false);
         return;
       }
@@ -118,7 +125,8 @@ export default function Page4() {
       );
 
       if (link.error) {
-        setError("Failed to add book to your shelf. Please try again.");
+        console.error("Link book to user error:", link.error);
+        setError(`Failed to add book to your shelf: ${link.error.message || "Please try again."}`);
         setLoading(false);
         return;
       }
@@ -146,7 +154,7 @@ export default function Page4() {
         console.error("Failed to save reading plan:", planResult.error);
       }
 
-      router.push("/(tabs)/Book/book-added");
+      router.push("/(tabs)/book/book-added");
       setLoading(false);
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");

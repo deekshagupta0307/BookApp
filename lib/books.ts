@@ -58,14 +58,22 @@ export class BookService {
   // Add a new book to the database
   static async addBook(bookData: Omit<Book, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: Book | null; error: any }> {
     try {
+      console.log("Adding book to Supabase:", bookData);
       const { data, error } = await supabase
         .from('books')
         .insert(bookData)
         .select()
         .single();
 
-      return { data, error };
+      if (error) {
+        console.error("Supabase error adding book:", error);
+        return { data: null, error };
+      }
+
+      console.log("Book added successfully:", data);
+      return { data, error: null };
     } catch (error) {
+      console.error("Exception adding book:", error);
       return { data: null, error };
     }
   }
@@ -96,6 +104,7 @@ export class BookService {
   // Add book to user's collection
   static async addBookToUser(userId: string, bookId: string, status: 'want_to_read' | 'currently_reading' | 'read' = 'want_to_read'): Promise<{ data: UserBook | null; error: any }> {
     try {
+      console.log("Linking book to user:", { userId, bookId, status });
       const { data, error } = await supabase
         .from('user_books')
         .insert({
@@ -109,8 +118,15 @@ export class BookService {
         `)
         .single();
 
-      return { data, error };
+      if (error) {
+        console.error("Supabase error linking book to user:", error);
+        return { data: null, error };
+      }
+
+      console.log("Book linked to user successfully:", data);
+      return { data, error: null };
     } catch (error) {
+      console.error("Exception linking book to user:", error);
       return { data: null, error };
     }
   }

@@ -37,35 +37,34 @@ export default function CurrentlyReading() {
       try {
         let bookToShow: UserBook | null = null;
 
-        // If bookId is provided, fetch that specific book
         if (params.bookId) {
-          const { data: allBooks, error } = await BookService.getUserBooks(
+          const { data: allBooks } = await BookService.getUserBooks(
             user.id,
             "currently_reading"
           );
-
-          if (!error && allBooks) {
-            bookToShow = allBooks.find((book) => book.id === params.bookId) || null;
+          if (allBooks) {
+            bookToShow =
+              allBooks.find((book) => book.id === params.bookId) || null;
           }
         } else {
-          // If no bookId provided, get the first/most recent currently reading book
-          const { data, error } = await BookService.getUserBooks(
+          const { data } = await BookService.getUserBooks(
             user.id,
             "currently_reading"
           );
-
-          if (!error && data && data.length > 0) {
+          if (data && data.length > 0) {
             bookToShow = data[0];
           }
         }
 
         if (bookToShow) {
           setCurrentBook(bookToShow);
-          
-          // Fetch reading sessions for this book
-          const { data: sessions, error: sessionsError } = 
-            await BookService.getUserReadingSessions(user.id, bookToShow.book_id);
-          if (!sessionsError && sessions) {
+
+          const { data: sessions } = await BookService.getUserReadingSessions(
+            user.id,
+            bookToShow.book_id
+          );
+
+          if (sessions) {
             setReadingSessions(sessions);
           }
 
@@ -161,25 +160,25 @@ export default function CurrentlyReading() {
   const generateWeekData = () => {
     const weekData = [];
     const today = new Date();
-    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const currentDay = today.getDay();
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - currentDay + (currentDay === 0 ? -6 : 1)); // Start from Monday
+    startOfWeek.setDate(
+      today.getDate() - currentDay + (currentDay === 0 ? -6 : 1)
+    );
 
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    
+
     for (let i = 0; i < 7; i++) {
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
-      const isToday = date.toDateString() === today.toDateString();
-      
       weekData.push({
         day: days[i],
         date: date.getDate().toString(),
         fullDate: date,
-        isToday,
+        isToday: date.toDateString() === today.toDateString(),
       });
     }
-    
+
     return weekData;
   };
 
@@ -222,7 +221,14 @@ export default function CurrentlyReading() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#fff",
+        }}
+      >
         <ActivityIndicator size="large" color="#722F37" />
       </View>
     );
@@ -251,6 +257,7 @@ export default function CurrentlyReading() {
             <Text className="text-xl font-semibold ml-4">Book Details</Text>
           </View>
         </View>
+
         <Image
           source={require("../../assets/images/signup/monkey4.png")}
           className="w-48 h-48 mb-4"
@@ -300,76 +307,82 @@ export default function CurrentlyReading() {
         </TouchableOpacity>
       </View>
 
-      <View className="items-center mt-10 mb-8">
-        <Svg width={size} height={size}>
-          <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
-            <SvgCircle
-              stroke="#E5E5E5"
-              fill="none"
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              strokeWidth={strokeWidth}
-            />
-            <SvgCircle
-              stroke="#722F37"
-              fill="none"
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              strokeWidth={strokeWidth}
-              strokeDasharray={`${circumference} ${circumference}`}
-              strokeDashoffset={progressOffset}
-              strokeLinecap="round"
-            />
-          </G>
-        </Svg>
+        {/* CIRCLE PROGRESS */}
+        <View className="items-center mb-6">
+          <Svg width={size} height={size}>
+            <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
+              <SvgCircle
+                stroke="#E5E5E5"
+                fill="none"
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                strokeWidth={strokeWidth}
+              />
+              <SvgCircle
+                stroke="#722F37"
+                fill="none"
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                strokeWidth={strokeWidth}
+                strokeDasharray={`${circumference} ${circumference}`}
+                strokeDashoffset={progressOffset}
+                strokeLinecap="round"
+              />
+            </G>
+          </Svg>
 
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ fontSize: 36, fontWeight: "bold", color: "#141414" }}>
-            {Math.round(progress * 100)}%
-          </Text>
-          <Text style={{ fontSize: 20, color: "#555" }}>Completed</Text>
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{ fontSize: 36, fontWeight: "bold", color: "#141414" }}
+            >
+              {Math.round(progress * 100)}%
+            </Text>
+            <Text style={{ fontSize: 20, color: "#555" }}>Completed</Text>
+          </View>
         </View>
-      </View>
 
-      <Text className="text-2xl font-semibold text-center mb-2">
-        {book.title}
-      </Text>
-      <Text className="text-center text-[#A1A1A1] mb-4">By {book.author}</Text>
+        <Text className="text-2xl font-semibold text-center mb-2">
+          {book.title}
+        </Text>
+        <Text className="text-center text-[#A1A1A1] mb-2">
+          By {book.author}
+        </Text>
 
-      <View className="flex-row justify-center items-center p-4 mb-4">
-        <View className="items-center flex-1">
-          <Text className="text-2xl">{totalPages}</Text>
-          <Text className="font-semibold text-[#141414] text-lg">
-            Total Pages
-          </Text>
+        {/* ===================== STATS ===================== */}
+        <View className="flex-row justify-center items-center p-4 mb-2">
+          <View className="items-center flex-1">
+            <Text className="text-2xl">{totalPages}</Text>
+            <Text className="font-semibold text-[#141414] text-lg">
+              Total Pages
+            </Text>
+          </View>
+          <View className="h-20 w-px bg-gray-200" />
+          <View className="items-center flex-1">
+            <Text className="text-2xl">{completedPages}</Text>
+            <Text className="font-semibold text-[#141414] text-lg">
+              Completed
+            </Text>
+          </View>
+          <View className="h-20 w-px bg-gray-200" />
+          <View className="items-center flex-1">
+            <Text className="text-2xl">{pagesLeft}</Text>
+            <Text className="font-semibold text-[#141414] text-lg">
+              Pages Left
+            </Text>
+          </View>
         </View>
-        <View className="h-20 w-px bg-gray-200" />
-        <View className="items-center flex-1">
-          <Text className="text-2xl">{completedPages}</Text>
-          <Text className="font-semibold text-[#141414] text-lg">
-            Completed
-          </Text>
-        </View>
-        <View className="h-20 w-px bg-gray-200" />
-        <View className="items-center flex-1">
-          <Text className="text-2xl">{pagesLeft}</Text>
-          <Text className="font-semibold text-[#141414] text-lg">
-            Pages Left
-          </Text>
-        </View>
-      </View>
 
       <View className="mb-4">
         {daysToComplete !== null && (
@@ -402,7 +415,7 @@ export default function CurrentlyReading() {
         )}
       </View>
 
-      <View className="border-t border-gray-200 my-4" />
+        <View className="border-t border-gray-200 my-4" />
 
       <View className="flex-row justify-between items-center mb-2 mt-4">
         <Text className="text-2xl font-semibold text-[#141414]">
@@ -413,12 +426,12 @@ export default function CurrentlyReading() {
         </TouchableOpacity>
       </View>
 
-      <View className="flex-row items-center mb-4">
-        <Text className="font-semibold text-[#141414] mr-2 text-lg">
-          Today:
-        </Text>
-        <Text className="text-[#141414] text-lg">{formattedDate}</Text>
-      </View>
+        <View className="flex-row items-center mb-4">
+          <Text className="font-semibold text-[#141414] mr-2 text-lg">
+            Today:
+          </Text>
+          <Text className="text-[#141414] text-lg">{formattedDate}</Text>
+        </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {weekData.map((day, idx) => {
@@ -506,9 +519,6 @@ export default function CurrentlyReading() {
                     flex: 1.2,
                     backgroundColor: dayBackgroundColor,
                     justifyContent: "center",
-                    alignItems: "center",
-                    borderTopLeftRadius: 8,
-                    borderTopRightRadius: 8,
                   }}
                 >
                   <Text style={{ color: dayTextColor, fontWeight: "600" }}>

@@ -69,7 +69,7 @@ export default function SignIn() {
   // Handle OAuth callback from deep link
   useEffect(() => {
     const handleDeepLink = async (url: string) => {
-      if (url.includes('auth/callback')) {
+      if (url.includes("auth/callback")) {
         // Wait a bit for Supabase to process the session
         setTimeout(async () => {
           await initializeAuth();
@@ -81,7 +81,7 @@ export default function SignIn() {
       }
     };
 
-    const subscription = Linking.addEventListener('url', ({ url }) => {
+    const subscription = Linking.addEventListener("url", ({ url }) => {
       handleDeepLink(url);
     });
 
@@ -98,9 +98,9 @@ export default function SignIn() {
   const handleAppleSignIn = async () => {
     try {
       setIsOAuthLoading(true);
-      
+
       // Try native Apple Sign In first (iOS only)
-      if (Platform.OS === 'ios') {
+      if (Platform.OS === "ios") {
         const available = await AppleAuthentication.isAvailableAsync();
         if (available) {
           try {
@@ -118,10 +118,10 @@ export default function SignIn() {
               if (result.success && result.url) {
                 const browserResult = await WebBrowser.openAuthSessionAsync(
                   result.url,
-                  `${process.env.EXPO_PUBLIC_APP_SCHEME || 'bookapp'}://auth/callback`
+                  `${process.env.EXPO_PUBLIC_APP_SCHEME || "bookapp"}://auth/callback`
                 );
-                
-                if (browserResult.type === 'success') {
+
+                if (browserResult.type === "success") {
                   await initializeAuth();
                   const user = useUserStore.getState().user;
                   if (user) {
@@ -133,16 +133,16 @@ export default function SignIn() {
               }
             }
           } catch (error: any) {
-            if (error.code !== 'ERR_REQUEST_CANCELED') {
+            if (error.code !== "ERR_REQUEST_CANCELED") {
               // User cancelled, try OAuth URL flow as fallback
               const result = await signInWithApple();
               if (result.success && result.url) {
                 const browserResult = await WebBrowser.openAuthSessionAsync(
                   result.url,
-                  `${process.env.EXPO_PUBLIC_APP_SCHEME || 'bookapp'}://auth/callback`
+                  `${process.env.EXPO_PUBLIC_APP_SCHEME || "bookapp"}://auth/callback`
                 );
-                
-                if (browserResult.type === 'success') {
+
+                if (browserResult.type === "success") {
                   await initializeAuth();
                   const user = useUserStore.getState().user;
                   if (user) {
@@ -160,10 +160,10 @@ export default function SignIn() {
           if (result.success && result.url) {
             const browserResult = await WebBrowser.openAuthSessionAsync(
               result.url,
-              `${process.env.EXPO_PUBLIC_APP_SCHEME || 'bookapp'}://auth/callback`
+              `${process.env.EXPO_PUBLIC_APP_SCHEME || "bookapp"}://auth/callback`
             );
-            
-            if (browserResult.type === 'success') {
+
+            if (browserResult.type === "success") {
               await initializeAuth();
               const user = useUserStore.getState().user;
               if (user) {
@@ -180,10 +180,10 @@ export default function SignIn() {
         if (result.success && result.url) {
           const browserResult = await WebBrowser.openAuthSessionAsync(
             result.url,
-            `${process.env.EXPO_PUBLIC_APP_SCHEME || 'bookapp'}://auth/callback`
+            `${process.env.EXPO_PUBLIC_APP_SCHEME || "bookapp"}://auth/callback`
           );
-          
-          if (browserResult.type === 'success') {
+
+          if (browserResult.type === "success") {
             await initializeAuth();
             const user = useUserStore.getState().user;
             if (user) {
@@ -196,7 +196,7 @@ export default function SignIn() {
       }
     } catch (error: any) {
       console.error("Apple Sign In Error:", error);
-      if (error.code !== 'ERR_REQUEST_CANCELED') {
+      if (error.code !== "ERR_REQUEST_CANCELED") {
         Alert.alert("Error", "Failed to sign in with Apple. Please try again.");
       }
     } finally {
@@ -208,20 +208,20 @@ export default function SignIn() {
     try {
       setIsOAuthLoading(true);
       const result = await signInWithGoogle();
-      
+
       if (result.success && result.url) {
         const browserResult = await WebBrowser.openAuthSessionAsync(
           result.url,
-          `${process.env.EXPO_PUBLIC_APP_SCHEME || 'bookapp'}://auth/callback`
+          `${process.env.EXPO_PUBLIC_APP_SCHEME || "bookapp"}://auth/callback`
         );
-        
-        if (browserResult.type === 'success') {
+
+        if (browserResult.type === "success") {
           await initializeAuth();
           const user = useUserStore.getState().user;
           if (user) {
             router.replace("/(tabs)/home");
           }
-        } else if (browserResult.type === 'cancel') {
+        } else if (browserResult.type === "cancel") {
           // User cancelled, do nothing
         }
       } else if (result.error) {
@@ -229,8 +229,11 @@ export default function SignIn() {
       }
     } catch (error: any) {
       console.error("Google Sign In Error:", error);
-      if (error.code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert("Error", "Failed to sign in with Google. Please try again.");
+      if (error.code !== "ERR_REQUEST_CANCELED") {
+        Alert.alert(
+          "Error",
+          "Failed to sign in with Google. Please try again."
+        );
       }
     } finally {
       setIsOAuthLoading(false);

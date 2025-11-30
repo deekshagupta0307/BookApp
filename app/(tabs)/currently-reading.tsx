@@ -183,7 +183,7 @@ export default function CurrentlyReading() {
           Add a book to start reading!
         </Text>
         <TouchableOpacity
-          onPress={() => router.push("/(tabs)/Book/page1")}
+          onPress={() => router.push("/(tabs)/book/page1")}
           className="bg-[#722F37] w-full py-4 rounded-lg items-center justify-center"
         >
           <Text className="text-white font-bold text-center">Add a Book</Text>
@@ -463,7 +463,7 @@ export default function CurrentlyReading() {
             <TouchableOpacity
               onPress={() => {
                 setShowEditPopup(false);
-                router.push("/(tabs)/Book/page2");
+                router.push("/(tabs)/book/page2");
               }}
               className="h-12 border border-[#EFDFBB] rounded-xl mt-4 flex-row items-center px-3 justify-between"
             >

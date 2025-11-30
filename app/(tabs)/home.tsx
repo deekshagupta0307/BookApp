@@ -154,7 +154,7 @@ export default function HomePage() {
   const handleAddBookPress = () => {
     setButtonLoading(true);
     setTimeout(() => {
-      router.push("/(tabs)/Book/page1");
+      router.push("/(tabs)/book/page1");
       setButtonLoading(false);
     }, 500);
   };
@@ -292,7 +292,7 @@ export default function HomePage() {
                   Currently Reading
                 </Text>
 
-                <TouchableOpacity onPress={() => router.push("/(tabs)/Book/page1")}>
+                <TouchableOpacity onPress={() => router.push("/(tabs)/book/page1")}>
                   <Text
                     style={{
                       color: "#722F37",

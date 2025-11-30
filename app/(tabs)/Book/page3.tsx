@@ -3,6 +3,7 @@ import { useUserStore } from "@/app/store/user-store";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -28,6 +29,7 @@ export default function Page3() {
 
   const [error, setError] = useState("");
   const [focused, setFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const increment = () => {
     let num = parseInt(everydayPages) || 0;
@@ -65,40 +67,60 @@ export default function Page3() {
     }
 
     setError("");
+    setLoading(true);
 
-    // Insert book, then link to user as currently_reading
-    const { data: book, error } = await BookService.addBook({
-      title: bookName,
-      author,
-      page_count: parseInt(totalPages, 10),
-    });
-    if (error || !book) {
-      setError("Failed to add book. Please try again.");
-      return;
-    }
-    const link = await BookService.addBookToUser(
-      user.id,
-      book.id,
-      "currently_reading"
-    );
-    if (link.error) {
-      setError("Failed to add book to your shelf. Please try again.");
-      return;
-    }
+    try {
+      // Insert book, then link to user as currently_reading
+      const { data: book, error: bookError } = await BookService.addBook({
+        title: bookName,
+        author,
+        page_count: parseInt(totalPages, 10),
+      });
+      
+      if (bookError) {
+        console.error("Book insertion error:", bookError);
+        setError(`Failed to add book: ${bookError.message || "Please try again."}`);
+        setLoading(false);
+        return;
+      }
+      
+      if (!book) {
+        setError("Failed to add book. No data returned.");
+        setLoading(false);
+        return;
+      }
 
-    // Save everyday reading plan
-    const planResult = await ReadingPlanService.createReadingPlan(
-      user.id,
-      book.id,
-      'everyday',
-      parseInt(everydayPages, 10)
-    );
-    if (planResult.error) {
-      // Log error but don't block navigation - plan creation is optional
-      console.error("Failed to save reading plan:", planResult.error);
-    }
+      const link = await BookService.addBookToUser(
+        user.id,
+        book.id,
+        "currently_reading"
+      );
+      
+      if (link.error) {
+        console.error("Link book to user error:", link.error);
+        setError(`Failed to add book to your shelf: ${link.error.message || "Please try again."}`);
+        setLoading(false);
+        return;
+      }
 
-    router.push("/(tabs)/book/book-added");
+      // Save everyday reading plan
+      const planResult = await ReadingPlanService.createReadingPlan(
+        user.id,
+        book.id,
+        'everyday',
+        parseInt(everydayPages, 10)
+      );
+      if (planResult.error) {
+        // Log error but don't block navigation - plan creation is optional
+        console.error("Failed to save reading plan:", planResult.error);
+      }
+
+      router.push("/(tabs)/book/book-added");
+    } catch (err: any) {
+      console.error("Unexpected error adding book:", err);
+      setError(`An unexpected error occurred: ${err.message || "Please try again."}`);
+      setLoading(false);
+    }
   };
 
   return (
@@ -180,10 +202,15 @@ export default function Page3() {
             <TouchableOpacity
               onPress={handleSubmit}
               className="bg-[#722F37] w-full py-4 rounded-xl"
+              disabled={loading}
             >
-              <Text className="text-white font-bold text-center text-lg">
-                Add a Book
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white font-bold text-center text-lg">
+                  Add a Book
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>

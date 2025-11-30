@@ -215,7 +215,7 @@ export default function ReadingNow() {
             </Text>
             <View className="flex-row space-x-4">
               <TouchableOpacity
-                onPress={() => router.push("/(tabs)/Book/page1")}
+                onPress={() => router.push("/(tabs)/book/page1")}
               >
                 <Text className="text-[#722F37] underline font-semibold mr-2">
                   Add Book

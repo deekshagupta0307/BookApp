@@ -253,7 +253,6 @@ export default function HomePage() {
 
             return (
               <View
-              <View
                 key={tab}
                 className="w-[140] mr-4 p-4 rounded-lg border bg-white border-[#EFDFBB]"
               >
@@ -269,7 +268,7 @@ export default function HomePage() {
                   {desc}
                 </Text>
               </View>
-              </View>
+             
             );
           })}
         </ScrollView>

@@ -124,7 +124,7 @@ export default function Page3() {
         console.error("Failed to save reading plan:", planResult.error);
       }
 
-    router.push("/(tabs)/Book/book-added");
+    router.push("/(tabs)/book/book-added");
   };
 
   return (

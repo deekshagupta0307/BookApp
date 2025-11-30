@@ -270,7 +270,7 @@ export default function CurrentlyReading() {
           Add a book to start reading!
         </Text>
         <TouchableOpacity
-          onPress={() => router.push("/(tabs)/Book/page1")}
+          onPress={() => router.push("/(tabs)/book/page1")}
           className="bg-[#722F37] w-full py-4 rounded-lg items-center justify-center"
         >
           <Text className="text-white font-bold text-center">Add a Book</Text>
@@ -516,9 +516,10 @@ export default function CurrentlyReading() {
 
                 <View
                   style={{
-                    flex: 1.2,
+                    flex: 1.2, 
                     backgroundColor: dayBackgroundColor,
                     justifyContent: "center",
+                    alignItems: "center",
                   }}
                 >
                   <Text style={{ color: dayTextColor, fontWeight: "600" }}>

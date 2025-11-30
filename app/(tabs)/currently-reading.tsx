@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import Svg, { G, Circle as SvgCircle } from "react-native-svg";
 import { BookService, UserBook } from "../../lib/books";
+import { ReadingPlan, ReadingPlanService } from "../../lib/reading-plans";
 import { useUserStore } from "../store/user-store";
 
 const { width } = Dimensions.get("window");
@@ -22,6 +23,7 @@ export default function CurrentlyReading() {
   const [currentBook, setCurrentBook] = useState<UserBook | null>(null);
   const [loading, setLoading] = useState(true);
   const [readingSessions, setReadingSessions] = useState<any[]>([]);
+  const [readingPlan, setReadingPlan] = useState<ReadingPlan | null>(null);
 
   // Fetch user's currently reading book
   useEffect(() => {
@@ -66,8 +68,16 @@ export default function CurrentlyReading() {
           if (!sessionsError && sessions) {
             setReadingSessions(sessions);
           }
+
+          // Fetch reading plan for this book
+          const { data: plan, error: planError } = 
+            await ReadingPlanService.getActivePlanForBook(user.id, bookToShow.book_id);
+          if (!planError && plan) {
+            setReadingPlan(plan);
+          }
         } else {
           setCurrentBook(null);
+          setReadingPlan(null);
         }
       } catch (error) {
         console.error("Error fetching current book:", error);
@@ -80,8 +90,54 @@ export default function CurrentlyReading() {
     fetchCurrentBook();
   }, [user?.id, params.bookId]);
 
-  // Calculate progress
-  const progress = currentBook ? currentBook.progress / 100 : 0;
+  // Get book reference
+  const book = currentBook?.book;
+
+  // Calculate progress based on pages supposed to be read by today and past days
+  const calculateProgress = () => {
+    if (!currentBook || !book || !readingPlan) {
+      return currentBook ? currentBook.progress / 100 : 0;
+    }
+
+    const totalPages = book.page_count || 0;
+    if (totalPages === 0) return 0;
+
+    // Calculate total pages supposed to be read by today (including today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let totalPagesSupposedToRead = 0;
+    const startDate = currentBook.started_at 
+      ? new Date(currentBook.started_at)
+      : new Date(readingPlan.created_at);
+    startDate.setHours(0, 0, 0, 0);
+
+    if (readingPlan.plan_type === 'everyday' && readingPlan.pages_per_day) {
+      // For everyday plan: count all days from start to today (inclusive)
+      const daysDiff = Math.max(0, Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      totalPagesSupposedToRead = daysDiff * readingPlan.pages_per_day;
+    } else if (readingPlan.plan_type === 'weekly' && readingPlan.weekly_schedule) {
+      // For weekly plan: count only scheduled days from start to today
+      const schedule = readingPlan.weekly_schedule;
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      
+      let currentDate = new Date(startDate);
+      while (currentDate <= today) {
+        const dayName = dayNames[currentDate.getDay()];
+        const pagesForDay = schedule[dayName] || 0;
+        totalPagesSupposedToRead += pagesForDay;
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+
+    // Progress percentage is based on pages supposed to be read by today (including today)
+    // This shows how much of the book should have been read according to the plan
+    const progressPercentage = Math.min(100, (totalPagesSupposedToRead / totalPages) * 100);
+    
+    return progressPercentage / 100;
+  };
+
+  const progress = calculateProgress();
   const size = 180;
   const strokeWidth = 10;
   const radius = (size - strokeWidth) / 2;
@@ -89,12 +145,17 @@ export default function CurrentlyReading() {
   const progressOffset = circumference - circumference * progress;
 
   const today = new Date();
-  const formattedDate = today.toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const formatDateWithOrdinal = (date: Date) => {
+    const day = date.getDate();
+    const ordinal = day === 1 || day === 21 || day === 31 ? 'st' :
+                    day === 2 || day === 22 ? 'nd' :
+                    day === 3 || day === 23 ? 'rd' : 'th';
+    const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+    const month = date.toLocaleDateString("en-US", { month: "short" });
+    const year = date.getFullYear();
+    return `${weekday}, ${day}${ordinal} ${month}, ${year}`;
+  };
+  const formattedDate = formatDateWithOrdinal(today);
 
   // Generate week data dynamically
   const generateWeekData = () => {
@@ -125,9 +186,10 @@ export default function CurrentlyReading() {
   const weekData = generateWeekData();
 
   // Calculate book statistics
-  const book = currentBook?.book;
   const totalPages = book?.page_count || 0;
-  const completedPages = Math.round((progress * totalPages) / 100);
+  // Calculate actual pages read from reading sessions
+  const actualPagesRead = readingSessions.reduce((sum, session) => sum + session.pages_read, 0);
+  const completedPages = Math.min(actualPagesRead, totalPages);
   const pagesLeft = Math.max(0, totalPages - completedPages);
 
   // Calculate estimated completion date (simple estimation)
@@ -186,7 +248,7 @@ export default function CurrentlyReading() {
                 resizeMode="contain"
               />
             </TouchableOpacity>
-            <Text className="text-xl font-semibold ml-4">Currently Reading</Text>
+            <Text className="text-xl font-semibold ml-4">Book Details</Text>
           </View>
         </View>
         <Image
@@ -195,7 +257,7 @@ export default function CurrentlyReading() {
           resizeMode="contain"
         />
         <Text className="text-xl font-medium text-center mb-2">
-          No Book Currently Reading
+          No Book Book Details
         </Text>
         <Text className="text-[#141414] text-center mb-4 px-4 text-lg">
           Add a book to start reading!
@@ -227,7 +289,7 @@ export default function CurrentlyReading() {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <Text className="text-xl font-semibold ml-4">Currently Reading</Text>
+          <Text className="text-xl font-semibold ml-4">Book Details</Text>
         </View>
         <TouchableOpacity>
           <Image
@@ -368,6 +430,41 @@ export default function CurrentlyReading() {
           });
           const pagesRead = daySessions.reduce((sum, s) => sum + s.pages_read, 0);
 
+          // Determine if this day should be colored based on reading plan
+          let shouldBeColored = false;
+          let pagesExpected = 0;
+          let isCompleted = false;
+
+          if (readingPlan) {
+            if (readingPlan.plan_type === 'everyday' && readingPlan.pages_per_day) {
+              // Everyday plan: all days should be colored
+              shouldBeColored = true;
+              pagesExpected = readingPlan.pages_per_day;
+            } else if (readingPlan.plan_type === 'weekly' && readingPlan.weekly_schedule) {
+              // Weekly plan: only days with non-zero values should be colored
+              const schedule = readingPlan.weekly_schedule;
+              // Explicitly check if day exists in schedule and convert to number
+              const dayValue = schedule[day.day];
+              // Convert to number and ensure it's a valid positive number
+              pagesExpected = (dayValue !== undefined && dayValue !== null) 
+                ? Number(dayValue) 
+                : 0;
+              // Only color if pagesExpected is explicitly greater than 0
+              // Also check for NaN in case of invalid values
+              shouldBeColored = !isNaN(pagesExpected) && pagesExpected > 0;
+            }
+          }
+
+          // Check if day is completed (pages read >= pages expected)
+          if (shouldBeColored && pagesExpected > 0) {
+            isCompleted = pagesRead >= pagesExpected;
+          }
+
+          // Determine background color for the day card
+          // Half colored means: if it's supposed to be read (shouldBeColored), use beige background
+          const dayBackgroundColor = shouldBeColored ? "#EFDFBB" : "#fff";
+          const dayTextColor = shouldBeColored ? "#722F37" : "#555";
+
           return (
             <View
               key={idx}
@@ -391,24 +488,30 @@ export default function CurrentlyReading() {
                     alignItems: "center",
                   }}
                 >
-                  <Text
-                    style={{ color: "#555", fontSize: 16, fontWeight: "bold" }}
-                  >
-                    {pagesRead > 0 ? pagesRead : "-"}
-                  </Text>
+                  {isCompleted ? (
+                    <Text style={{ color: "#722F37", fontSize: 20, fontWeight: "bold" }}>
+                      ✓
+                    </Text>
+                  ) : (
+                    <Text
+                      style={{ color: "#555", fontSize: 16, fontWeight: "bold" }}
+                    >
+                      {pagesRead > 0 ? pagesRead : "-"}
+                    </Text>
+                  )}
                 </View>
 
                 <View
                   style={{
                     flex: 1.2,
-                    backgroundColor: day.isToday ? "#FDF6E7" : "#FDF6E7",
+                    backgroundColor: dayBackgroundColor,
                     justifyContent: "center",
                     alignItems: "center",
                     borderTopLeftRadius: 8,
                     borderTopRightRadius: 8,
                   }}
                 >
-                  <Text style={{ color: "#555", fontWeight: "600" }}>
+                  <Text style={{ color: dayTextColor, fontWeight: "600" }}>
                     {day.day}
                   </Text>
                 </View>
@@ -429,6 +532,51 @@ export default function CurrentlyReading() {
           );
         })}
       </ScrollView>
+
+      <View className="flex-row justify-between items-center mt-4 mb-4">
+        <View>
+          <Text className="text-[#141414] font-semibold text-lg">
+            Today's Goal: {readingPlan && readingPlan.plan_type === 'everyday' && readingPlan.pages_per_day
+              ? `${readingPlan.pages_per_day} pages`
+              : readingPlan && readingPlan.plan_type === 'weekly' && readingPlan.weekly_schedule
+              ? (() => {
+                  const today = new Date();
+                  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                  const todayName = dayNames[today.getDay()];
+                  const pages = readingPlan.weekly_schedule[todayName] || 0;
+                  return pages > 0 ? `${pages} pages` : '--';
+                })()
+              : '--'}
+          </Text>
+        </View>
+        <View>
+          <Text className="text-[#141414] font-semibold text-lg">
+            Next Goal On: {(() => {
+              if (!readingPlan) return '--';
+              
+              const today = new Date();
+              const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+              
+              if (readingPlan.plan_type === 'everyday') {
+                return 'Tomorrow';
+              } else if (readingPlan.plan_type === 'weekly' && readingPlan.weekly_schedule) {
+                // Find next day with pages > 0
+                for (let i = 1; i <= 7; i++) {
+                  const nextDay = new Date(today);
+                  nextDay.setDate(today.getDate() + i);
+                  const nextDayName = dayNames[nextDay.getDay()];
+                  const pages = readingPlan.weekly_schedule[nextDayName] || 0;
+                  if (pages > 0) {
+                    return nextDayName;
+                  }
+                }
+                return '--';
+              }
+              return '--';
+            })()}
+          </Text>
+        </View>
+      </View>
     </ScrollView>
   );
 }

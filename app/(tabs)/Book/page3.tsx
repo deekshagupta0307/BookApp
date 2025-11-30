@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BookService } from "../../../lib/books";
 import { ReadingPlanService } from "../../../lib/reading-plans";
+import { supabase } from "../../../lib/supabase";
 
 export default function Page3() {
   const router = useRouter();
@@ -59,12 +60,32 @@ export default function Page3() {
       setError("Please enter how many pages you can read every day.");
       return;
     }
-    if (!user?.id) {
+
+    setError("");
+
+    // Get user ID - try from store first, then from Supabase session
+    let userId = user?.id;
+    if (!userId) {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser?.id) {
+          userId = currentUser.id;
+          // Update the store with the current user
+          useUserStore.getState().setUser(currentUser);
+        } else {
+          setError("You must be signed in to add a book. Please sign in and try again.");
+          return;
+        }
+      } catch (err) {
+        setError("Unable to verify your account. Please sign in and try again.");
+        return;
+      }
+    }
+
+    if (!userId) {
       setError("You must be signed in to add a book.");
       return;
     }
-
-    setError("");
 
     // Insert book, then link to user as currently_reading
     const { data: book, error } = await BookService.addBook({
@@ -77,7 +98,7 @@ export default function Page3() {
       return;
     }
     const link = await BookService.addBookToUser(
-      user.id,
+      userId,
       book.id,
       "currently_reading"
     );
@@ -88,7 +109,7 @@ export default function Page3() {
 
     // Save everyday reading plan
     const planResult = await ReadingPlanService.createReadingPlan(
-      user.id,
+      userId,
       book.id,
       'everyday',
       parseInt(everydayPages, 10)

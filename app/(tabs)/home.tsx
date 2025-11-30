@@ -1,5 +1,6 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router"; // import router
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -15,7 +16,6 @@ import { useUserStore } from "../store/user-store";
 const { width } = Dimensions.get("window");
 
 export default function HomePage() {
-  const [selectedTab, setSelectedTab] = useState("today");
   const firstName = useUserStore((s) => s.firstName);
   const { user } = useUserStore();
   const router = useRouter(); // initialize router
@@ -33,58 +33,66 @@ export default function HomePage() {
     year: "numeric",
   });
 
-  // Fetch user's books
-  useEffect(() => {
-    const fetchUserBooks = async () => {
-      if (!user?.id) {
-        setLoading(false);
-        return;
+  // Fetch user's books - refetch when screen comes into focus
+  const fetchUserBooks = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Fetch currently reading books
+      const { data: readingData, error: readingError } = await BookService.getUserBooks(
+        user.id,
+        "currently_reading"
+      );
+      if (!readingError && readingData) {
+        setCurrentlyReadingBooks(readingData);
       }
 
-      setLoading(true);
-      try {
-        // Fetch currently reading books
-        const { data: readingData, error: readingError } = await BookService.getUserBooks(
-          user.id,
-          "currently_reading"
-        );
-        if (!readingError && readingData) {
-          setCurrentlyReadingBooks(readingData);
-        }
-
-        // Fetch finished books
-        const { data: finishedData, error: finishedError } = await BookService.getUserBooks(
-          user.id,
-          "read"
-        );
-        if (!finishedError && finishedData) {
-          setFinishedBooks(finishedData);
-        }
-
-        // Fetch pages read today
-        const { data: sessionsData, error: sessionsError } = await BookService.getUserReadingSessions(
-          user.id
-        );
-        if (!sessionsError && sessionsData) {
-          const todayDate = new Date();
-          const todayStr = todayDate.toISOString().split("T")[0];
-          const todayPages = sessionsData
-            .filter((session) => {
-              const sessionDate = new Date(session.session_date).toISOString().split("T")[0];
-              return sessionDate === todayStr;
-            })
-            .reduce((sum, session) => sum + session.pages_read, 0);
-          setPagesReadToday(todayPages);
-        }
-      } catch (error) {
-        console.error("Error fetching user books:", error);
-      } finally {
-        setLoading(false);
+      // Fetch finished books
+      const { data: finishedData, error: finishedError } = await BookService.getUserBooks(
+        user.id,
+        "read"
+      );
+      if (!finishedError && finishedData) {
+        setFinishedBooks(finishedData);
       }
-    };
 
-    fetchUserBooks();
+      // Fetch pages read today
+      const { data: sessionsData, error: sessionsError } = await BookService.getUserReadingSessions(
+        user.id
+      );
+      if (!sessionsError && sessionsData) {
+        const todayDate = new Date();
+        const todayStr = todayDate.toISOString().split("T")[0];
+        const todayPages = sessionsData
+          .filter((session) => {
+            const sessionDate = new Date(session.session_date).toISOString().split("T")[0];
+            return sessionDate === todayStr;
+          })
+          .reduce((sum, session) => sum + session.pages_read, 0);
+        setPagesReadToday(todayPages);
+      }
+    } catch (error) {
+      console.error("Error fetching user books:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [user?.id]);
+
+  // Fetch on mount and when user changes
+  useEffect(() => {
+    fetchUserBooks();
+  }, [fetchUserBooks]);
+
+  // Refetch when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserBooks();
+    }, [fetchUserBooks])
+  );
 
   const renderVerticalCards = (fetchUserBooks: UserBook[]) =>
     fetchUserBooks.map((userBook) => {
@@ -238,19 +246,14 @@ export default function HomePage() {
             }
 
             return (
-              <TouchableOpacity
+              <View
                 key={tab}
-                onPress={() => setSelectedTab(tab)}
-                className={`w-[140] mr-4 p-4 rounded-lg border bg-white ${
-                  selectedTab === tab ? "border-[#722F37]" : "border-[#EFDFBB]"
-                }`}
+                className="w-[140] mr-4 p-4 rounded-lg border bg-white border-[#EFDFBB]"
               >
                 <Text
                   numberOfLines={1}
                   ellipsizeMode="tail"
-                  className={`text-center font-semibold ${
-                    selectedTab === tab ? "text-[#722F37]" : "text-[#141414]"
-                  }`}
+                  className="text-center font-semibold text-[#141414]"
                 >
                   {title}
                 </Text>
@@ -258,107 +261,49 @@ export default function HomePage() {
                 <Text className="text-center text-sm mt-1 text-[#141414]">
                   {desc}
                 </Text>
-              </TouchableOpacity>
+              </View>
             );
           })}
         </ScrollView>
       </View>
 
-      {selectedTab === "today" && (
-        <View className="items-center p-6">
-          <Image
-            source={require("../../assets/images/signup/monkey4.png")}
-            className="w-48 h-48 mb-4"
-            resizeMode="contain"
-          />
-          <Text className="text-2xl font-medium text-center mb-2">
-            Start Your Reading Journey
-          </Text>
-          <Text className="text-[#141414] text-center mb-4 px-4 text-lg">
-            Add a Book to Get Started
-          </Text>
-          <TouchableOpacity
-            onPress={handleAddBookPress}
-            className="bg-[#722F37] w-full py-4 rounded-lg items-center justify-center flex-row"
-            disabled={buttonLoading}
-          >
-            {buttonLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text className="text-white font-bold text-center">
-                Add a Book
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {selectedTab === "reading" && (
-        <View className="px-6">
-          <Text className="text-2xl font-bold mb-4">Currently Reading</Text>
-          {loading ? (
-            <View className="items-center py-10">
-              <ActivityIndicator size="large" color="#722F37" />
-            </View>
-          ) : currentlyReadingBooks.length === 0 ? (
-            <View className="items-center py-10">
-              <Image
-                source={require("../../assets/images/signup/monkey4.png")}
-                className="w-48 h-48 mb-4"
-                resizeMode="contain"
-              />
-              <Text className="text-xl font-medium text-center mb-2">
-                No Books Currently Reading
-              </Text>
-              <Text className="text-[#141414] text-center mb-4 px-4 text-lg">
-                Add a book to start reading!
-              </Text>
-              <TouchableOpacity
-                onPress={handleAddBookPress}
-                className="bg-[#722F37] w-full py-4 rounded-lg items-center justify-center flex-row"
-                disabled={buttonLoading}
-              >
-                {buttonLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text className="text-white font-bold text-center">
-                    Add a Book
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          ) : (
-            renderVerticalCards(currentlyReadingBooks)
-          )}
-        </View>
-      )}
-
-      {selectedTab === "finished" && (
-        <View className="px-6">
-          <Text className="text-xl font-bold mb-4">Finished Books</Text>
-          {loading ? (
-            <View className="items-center py-10">
-              <ActivityIndicator size="large" color="#722F37" />
-            </View>
-          ) : finishedBooks.length === 0 ? (
-            <View className="items-center py-10">
-              <Image
-                source={require("../../assets/images/signup/monkey4.png")}
-                className="w-48 h-48 mb-4"
-                resizeMode="contain"
-              />
-              <Text className="text-xl font-medium text-center mb-2">
-                No Finished Books Yet
-              </Text>
-              <Text className="text-gray-600 mb-2 text-center">
-                Complete reading a book to see it here.
-              </Text>
-            </View>
-          ) : (
-            renderVerticalCards(finishedBooks)
-          )}
-        </View>
-      )}
+      <View className="px-6">
+        <Text className="text-2xl font-bold mb-4">Currently Reading</Text>
+        {loading ? (
+          <View className="items-center py-10">
+            <ActivityIndicator size="large" color="#722F37" />
+          </View>
+        ) : currentlyReadingBooks.length === 0 ? (
+          <View className="items-center py-10">
+            <Image
+              source={require("../../assets/images/signup/monkey4.png")}
+              className="w-48 h-48 mb-4"
+              resizeMode="contain"
+            />
+            <Text className="text-xl font-medium text-center mb-2">
+              No Books Currently Reading
+            </Text>
+            <Text className="text-[#141414] text-center mb-4 px-4 text-lg">
+              Add a book to start reading!
+            </Text>
+            <TouchableOpacity
+              onPress={handleAddBookPress}
+              className="bg-[#722F37] w-full py-4 rounded-lg items-center justify-center flex-row"
+              disabled={buttonLoading}
+            >
+              {buttonLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text className="text-white font-bold text-center">
+                  Add a Book
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          renderVerticalCards(currentlyReadingBooks)
+        )}
+      </View>
     </ScrollView>
   );
 }

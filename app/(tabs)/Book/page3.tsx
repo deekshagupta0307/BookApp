@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BookService } from "../../../lib/books";
 import { ReadingPlanService } from "../../../lib/reading-plans";
+import { supabase } from "../../../lib/supabase";
 
 export default function Page3() {
   const router = useRouter();
@@ -61,7 +62,29 @@ export default function Page3() {
       setError("Please enter how many pages you can read every day.");
       return;
     }
-    if (!user?.id) {
+
+    setError("");
+
+    // Get user ID - try from store first, then from Supabase session
+    let userId = user?.id;
+    if (!userId) {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser?.id) {
+          userId = currentUser.id;
+          // Update the store with the current user
+          useUserStore.getState().setUser(currentUser);
+        } else {
+          setError("You must be signed in to add a book. Please sign in and try again.");
+          return;
+        }
+      } catch (err) {
+        setError("Unable to verify your account. Please sign in and try again.");
+        return;
+      }
+    }
+
+    if (!userId) {
       setError("You must be signed in to add a book.");
       return;
     }
@@ -69,43 +92,29 @@ export default function Page3() {
     setError("");
     setLoading(true);
 
-    try {
-      // Insert book, then link to user as currently_reading
-      const { data: book, error: bookError } = await BookService.addBook({
-        title: bookName,
-        author,
-        page_count: parseInt(totalPages, 10),
-      });
-      
-      if (bookError) {
-        console.error("Book insertion error:", bookError);
-        setError(`Failed to add book: ${bookError.message || "Please try again."}`);
-        setLoading(false);
-        return;
-      }
-      
-      if (!book) {
-        setError("Failed to add book. No data returned.");
-        setLoading(false);
-        return;
-      }
-
-      const link = await BookService.addBookToUser(
-        user.id,
-        book.id,
-        "currently_reading"
-      );
-      
-      if (link.error) {
-        console.error("Link book to user error:", link.error);
-        setError(`Failed to add book to your shelf: ${link.error.message || "Please try again."}`);
-        setLoading(false);
-        return;
-      }
+    // Insert book, then link to user as currently_reading
+    const { data: book, error } = await BookService.addBook({
+      title: bookName,
+      author,
+      page_count: parseInt(totalPages, 10),
+    });
+    if (error || !book) {
+      setError("Failed to add book. Please try again.");
+      return;
+    }
+    const link = await BookService.addBookToUser(
+      userId,
+      book.id,
+      "currently_reading"
+    );
+    if (link.error) {
+      setError("Failed to add book to your shelf. Please try again.");
+      return;
+    }
 
       // Save everyday reading plan
       const planResult = await ReadingPlanService.createReadingPlan(
-        user.id,
+        userId,
         book.id,
         'everyday',
         parseInt(everydayPages, 10)
@@ -115,12 +124,7 @@ export default function Page3() {
         console.error("Failed to save reading plan:", planResult.error);
       }
 
-      router.push("/(tabs)/book/book-added");
-    } catch (err: any) {
-      console.error("Unexpected error adding book:", err);
-      setError(`An unexpected error occurred: ${err.message || "Please try again."}`);
-      setLoading(false);
-    }
+    router.push("/(tabs)/book/book-added");
   };
 
   return (

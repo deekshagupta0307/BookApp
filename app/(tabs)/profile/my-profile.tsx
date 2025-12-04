@@ -1,8 +1,7 @@
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -10,28 +9,202 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ChevronRight } from "lucide-react-native";
+import { BookService } from "../../../lib/books";
+import { supabase } from "../../../lib/supabase";
 import { useUserStore } from "../../store/user-store";
 
 const { width } = Dimensions.get("window");
 
+// Format number with K suffix (e.g., 1000 -> 1K)
+const formatNumber = (num: number): string => {
+  if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}K`;
+  }
+  return num.toString();
+};
+
 export default function MyProfile() {
   const router = useRouter();
-  const signOut = useUserStore((s) => s.signOut);
+  const { user } = useUserStore();
+  const signOut = useUserStore((state) => state.signOut);
+
+  // Profile data state
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<{
+    first_name: string;
+    last_name: string;
+    avatar_url: string | null;
+    username?: string;
+  } | null>(null);
+  const [stats, setStats] = useState({
+    booksRead: 0,
+    pagesRead: 0,
+    badges: 0,
+    daysStreak: 0,
+  });
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  // Calculate reading streak (consecutive days with reading sessions)
+  const calculateReadingStreak = (sessions: any[]): number => {
+    if (!sessions || sessions.length === 0) return 0;
+
+    // Get unique dates from sessions
+    const uniqueDates = new Set(
+      sessions.map(session => {
+        const date = new Date(session.session_date);
+        return date.toISOString().split('T')[0];
+      })
+    );
+
+    const sortedDates = Array.from(uniqueDates).sort().reverse();
+    if (sortedDates.length === 0) return 0;
+
+    // Check if today or yesterday has a session
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    // Start counting from today or yesterday
+    let currentDate = sortedDates.includes(todayStr) 
+      ? new Date(today) 
+      : sortedDates.includes(yesterdayStr)
+      ? new Date(yesterday)
+      : null;
+
+    if (!currentDate) return 0;
+
+    let streak = 0;
+    let checkDate = new Date(currentDate);
+
+    while (true) {
+      const checkDateStr = checkDate.toISOString().split('T')[0];
+      if (sortedDates.includes(checkDateStr)) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  };
+
+  // Calculate badges based on milestones
+  const calculateBadges = (booksRead: number, pagesRead: number): number => {
+    let badgeCount = 0;
+
+    // Book reading milestones
+    if (booksRead >= 1) badgeCount++;
+    if (booksRead >= 5) badgeCount++;
+    if (booksRead >= 10) badgeCount++;
+    if (booksRead >= 25) badgeCount++;
+    if (booksRead >= 50) badgeCount++;
+    if (booksRead >= 100) badgeCount++;
+
+    // Page reading milestones
+    if (pagesRead >= 100) badgeCount++;
+    if (pagesRead >= 500) badgeCount++;
+    if (pagesRead >= 1000) badgeCount++;
+    if (pagesRead >= 5000) badgeCount++;
+    if (pagesRead >= 10000) badgeCount++;
+
+    return badgeCount;
+  };
+
+  // Fetch user profile and statistics
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        // Fetch user profile from users table
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .select('first_name, last_name, avatar_url, username')
+          .eq('id', user.id)
+          .single();
+
+        if (!profileError && profileData) {
+          setUserProfile(profileData);
+        }
+
+        // Fetch reading statistics
+        const { data: readingStats, error: statsError } = 
+          await BookService.getUserReadingStats(user.id);
+
+        if (!statsError && readingStats) {
+          setStats(prev => ({
+            ...prev,
+            booksRead: readingStats.totalBooksRead || 0,
+            pagesRead: readingStats.totalPagesRead || 0,
+          }));
+        }
+
+        // Calculate reading streak from reading sessions
+        const { data: sessions, error: sessionsError } = 
+          await BookService.getUserReadingSessions(user.id);
+
+        if (!sessionsError && sessions) {
+          const streak = calculateReadingStreak(sessions);
+          setStats(prev => ({ ...prev, daysStreak: streak }));
+        }
+
+        // Calculate badges based on milestones
+        const badges = calculateBadges(
+          readingStats?.totalBooksRead || 0,
+          readingStats?.totalPagesRead || 0
+        );
+        setStats(prev => ({ ...prev, badges }));
+
+      } catch (error) {
+        console.error("Error fetching profile data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfileData();
+  }, [user?.id]);
+
   const handleLogout = async () => {
+    setIsLoggingOut(true);
     try {
-      setIsLoggingOut(true);
       await signOut();
       router.replace("/(auth)/signin");
     } catch (error) {
-      console.error("Logout error:", error);
-      Alert.alert("Error", "Failed to logout. Please try again.");
+      console.error("Error during logout:", error);
     } finally {
       setIsLoggingOut(false);
     }
   };
+
+  const displayName = userProfile 
+    ? `${userProfile.first_name} ${userProfile.last_name}`.trim()
+    : user?.user_metadata?.first_name && user?.user_metadata?.last_name
+    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`.trim()
+    : user?.email?.split('@')[0] || "User";
+
+  const displayUsername = userProfile?.username 
+    ? `@${userProfile.username}`
+    : user?.email 
+    ? `@${user.email.split('@')[0]}`
+    : "";
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-white justify-center items-center">
+        <ActivityIndicator size="large" color="#722F37" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView className="flex-1 bg-white">
@@ -40,15 +213,25 @@ export default function MyProfile() {
       </View>
 
       <View className="flex-row px-5 py-6 items-center">
-        <Image
-          source={require("../../../assets/images/profile/user.png")}
-          className="w-16 h-16 rounded-full"
-          resizeMode="contain"
-        />
+        {userProfile?.avatar_url ? (
+          <Image
+            source={{ uri: userProfile.avatar_url }}
+            className="w-16 h-16 rounded-full"
+            resizeMode="cover"
+          />
+        ) : (
+          <Image
+            source={require("../../../assets/images/profile/user.png")}
+            className="w-16 h-16 rounded-full"
+            resizeMode="contain"
+          />
+        )}
 
         <View className="ml-4">
-          <Text className="text-lg font-semibold">deeksha@123</Text>
-          <Text className="text-gray-500 mt-1">123456</Text>
+          <Text className="text-lg font-semibold">{displayName}</Text>
+          {displayUsername && (
+            <Text className="text-gray-500 mt-1">{displayUsername}</Text>
+          )}
         </View>
       </View>
 
@@ -57,28 +240,32 @@ export default function MyProfile() {
           <Text className="text-lg text-gray-700 mb-2 font-semibold">
             Finished
           </Text>
-          <Text className="text-md">1 Book(s)</Text>
+          <Text className="text-md">
+            {stats.booksRead} Book{stats.booksRead !== 1 ? 's' : ''}
+          </Text>
         </View>
 
         <View className="w-[48%] border border-[#EFDFBB] rounded-xl py-5 mb-4 items-center">
           <Text className="text-lg text-gray-700 mb-2 font-semibold">
             Total Read
           </Text>
-          <Text className="text-md">1K Page(s)</Text>
+          <Text className="text-md">
+            {formatNumber(stats.pagesRead)} Page{stats.pagesRead !== 1 ? 's' : ''}
+          </Text>
         </View>
 
         <View className="w-[48%] border border-[#EFDFBB] rounded-xl py-5 mb-4 items-center">
           <Text className="text-lg text-gray-700 mb-2 font-semibold">
             Badges
           </Text>
-          <Text className="text-md">12</Text>
+          <Text className="text-md">{stats.badges}</Text>
         </View>
 
         <View className="w-[48%] border border-[#EFDFBB] rounded-xl py-5 mb-4 items-center">
           <Text className="text-lg text-gray-700 mb-2 font-semibold">
             Days Streak
           </Text>
-          <Text className="text-md">50</Text>
+          <Text className="text-md">{stats.daysStreak}</Text>
         </View>
       </View>
 
@@ -87,15 +274,15 @@ export default function MyProfile() {
           className="flex-row justify-between items-center py-4"
           onPress={() => router.push("/my-shelf")}
         >
-          <View className="flex-row items-center mb-4">
+          <View className="flex-row items-center">
             <Image
               source={require("../../../assets/images/profile/book.png")}
               className="w-6 h-6 mr-3"
             />
-            <Text className="text-lg font-semibold">My Shelf</Text>
+            <Text className="text-lg font-semibold">My Books</Text>
           </View>
 
-          <ChevronRight size={20} color="#000" />
+          {/* <ChevronRight size={20} color="#000" /> */}
         </TouchableOpacity>
 
         <View className="w-full h-[1px] bg-gray-200" />
@@ -113,7 +300,7 @@ export default function MyProfile() {
             <Text className="text-lg font-semibold">Privacy Policy</Text>
           </View>
 
-          <ChevronRight size={20} color="#000" />
+          {/* <ChevronRight size={20} color="#000" /> */}
         </TouchableOpacity>
       </View>
 

@@ -8,12 +8,11 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Modal,
 } from "react-native";
 import Svg, { G, Circle as SvgCircle } from "react-native-svg";
 import { BookService, UserBook } from "../../lib/books";
+import { ReadingPlan, ReadingPlanService } from "../../lib/reading-plans";
 import { useUserStore } from "../store/user-store";
-import { ChevronRight } from "lucide-react-native";
 
 const { width } = Dimensions.get("window");
 
@@ -24,10 +23,9 @@ export default function CurrentlyReading() {
   const [currentBook, setCurrentBook] = useState<UserBook | null>(null);
   const [loading, setLoading] = useState(true);
   const [readingSessions, setReadingSessions] = useState<any[]>([]);
+  const [readingPlan, setReadingPlan] = useState<ReadingPlan | null>(null);
 
-  const [showEditPopup, setShowEditPopup] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
+  // Fetch user's currently reading book
   useEffect(() => {
     const fetchCurrentBook = async () => {
       if (!user?.id) {
@@ -69,8 +67,16 @@ export default function CurrentlyReading() {
           if (sessions) {
             setReadingSessions(sessions);
           }
+
+          // Fetch reading plan for this book
+          const { data: plan, error: planError } = 
+            await ReadingPlanService.getActivePlanForBook(user.id, bookToShow.book_id);
+          if (!planError && plan) {
+            setReadingPlan(plan);
+          }
         } else {
           setCurrentBook(null);
+          setReadingPlan(null);
         }
       } catch (error) {
         console.error("Error fetching current book:", error);
@@ -83,7 +89,54 @@ export default function CurrentlyReading() {
     fetchCurrentBook();
   }, [user?.id, params.bookId]);
 
-  const progress = currentBook ? currentBook.progress / 100 : 0;
+  // Get book reference
+  const book = currentBook?.book;
+
+  // Calculate progress based on pages supposed to be read by today and past days
+  const calculateProgress = () => {
+    if (!currentBook || !book || !readingPlan) {
+      return currentBook ? currentBook.progress / 100 : 0;
+    }
+
+    const totalPages = book.page_count || 0;
+    if (totalPages === 0) return 0;
+
+    // Calculate total pages supposed to be read by today (including today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let totalPagesSupposedToRead = 0;
+    const startDate = currentBook.started_at 
+      ? new Date(currentBook.started_at)
+      : new Date(readingPlan.created_at);
+    startDate.setHours(0, 0, 0, 0);
+
+    if (readingPlan.plan_type === 'everyday' && readingPlan.pages_per_day) {
+      // For everyday plan: count all days from start to today (inclusive)
+      const daysDiff = Math.max(0, Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      totalPagesSupposedToRead = daysDiff * readingPlan.pages_per_day;
+    } else if (readingPlan.plan_type === 'weekly' && readingPlan.weekly_schedule) {
+      // For weekly plan: count only scheduled days from start to today
+      const schedule = readingPlan.weekly_schedule;
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      
+      let currentDate = new Date(startDate);
+      while (currentDate <= today) {
+        const dayName = dayNames[currentDate.getDay()];
+        const pagesForDay = schedule[dayName] || 0;
+        totalPagesSupposedToRead += pagesForDay;
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+
+    // Progress percentage is based on pages supposed to be read by today (including today)
+    // This shows how much of the book should have been read according to the plan
+    const progressPercentage = Math.min(100, (totalPagesSupposedToRead / totalPages) * 100);
+    
+    return progressPercentage / 100;
+  };
+
+  const progress = calculateProgress();
   const size = 180;
   const strokeWidth = 10;
   const radius = (size - strokeWidth) / 2;
@@ -91,13 +144,19 @@ export default function CurrentlyReading() {
   const progressOffset = circumference - circumference * progress;
 
   const today = new Date();
-  const formattedDate = today.toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const formatDateWithOrdinal = (date: Date) => {
+    const day = date.getDate();
+    const ordinal = day === 1 || day === 21 || day === 31 ? 'st' :
+                    day === 2 || day === 22 ? 'nd' :
+                    day === 3 || day === 23 ? 'rd' : 'th';
+    const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+    const month = date.toLocaleDateString("en-US", { month: "short" });
+    const year = date.getFullYear();
+    return `${weekday}, ${day}${ordinal} ${month}, ${year}`;
+  };
+  const formattedDate = formatDateWithOrdinal(today);
 
+  // Generate week data dynamically
   const generateWeekData = () => {
     const weekData = [];
     const today = new Date();
@@ -125,10 +184,40 @@ export default function CurrentlyReading() {
 
   const weekData = generateWeekData();
 
-  const book = currentBook?.book;
+  // Calculate book statistics
   const totalPages = book?.page_count || 0;
-  const completedPages = Math.round((progress * totalPages) / 100);
+  // Calculate actual pages read from reading sessions
+  const actualPagesRead = readingSessions.reduce((sum, session) => sum + session.pages_read, 0);
+  const completedPages = Math.min(actualPagesRead, totalPages);
   const pagesLeft = Math.max(0, totalPages - completedPages);
+
+  // Calculate estimated completion date (simple estimation)
+  const calculateCompletionDate = () => {
+    if (!currentBook || totalPages === 0 || pagesLeft === 0) return null;
+    
+    // Get average pages per day from reading sessions (last 7 days)
+    const last7Days = readingSessions.filter((session) => {
+      const sessionDate = new Date(session.session_date);
+      const daysDiff = (today.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24);
+      return daysDiff <= 7;
+    });
+    
+    if (last7Days.length === 0) return null;
+    
+    const avgPagesPerDay = last7Days.reduce((sum, s) => sum + s.pages_read, 0) / 7;
+    if (avgPagesPerDay <= 0) return null;
+    
+    const daysToComplete = Math.ceil(pagesLeft / avgPagesPerDay);
+    const completionDate = new Date(today);
+    completionDate.setDate(today.getDate() + daysToComplete);
+    
+    return completionDate;
+  };
+
+  const completionDate = calculateCompletionDate();
+  const daysToComplete = completionDate 
+    ? Math.ceil((completionDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
 
   if (loading) {
     return (
@@ -165,9 +254,7 @@ export default function CurrentlyReading() {
                 resizeMode="contain"
               />
             </TouchableOpacity>
-            <Text className="text-xl font-semibold ml-4">
-              Currently Reading
-            </Text>
+            <Text className="text-xl font-semibold ml-4">Book Details</Text>
           </View>
         </View>
 
@@ -177,7 +264,7 @@ export default function CurrentlyReading() {
           resizeMode="contain"
         />
         <Text className="text-xl font-medium text-center mb-2">
-          No Book Currently Reading
+          No Book Book Details
         </Text>
         <Text className="text-[#141414] text-center mb-4 px-4 text-lg">
           Add a book to start reading!
@@ -193,28 +280,32 @@ export default function CurrentlyReading() {
   }
 
   return (
-    <>
-      {/* ===================== MAIN SCREEN ===================== */}
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          backgroundColor: "#fff",
-          padding: 16,
-        }}
-      >
-        {/* HEADER */}
-        <View className="flex-row items-center justify-between mb-4 mt-8">
-          <View className="flex-row items-center">
-            <TouchableOpacity onPress={() => router.back()}>
-              <Image
-                source={require("../../assets/images/book/arrow-left.png")}
-                className="w-12 h-12"
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-            <Text className="text-xl font-semibold ml-4">Book Details</Text>
-          </View>
+    <ScrollView
+      contentContainerStyle={{
+        flexGrow: 1,
+        backgroundColor: "#fff",
+        padding: 16,
+      }}
+    >
+      <View className="flex-row items-center justify-between mb-4 mt-10">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()}>
+            <Image
+              source={require("../../assets/images/book/arrow-left.png")}
+              className="w-12 h-12"
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+          <Text className="text-xl font-semibold ml-4">Book Details</Text>
         </View>
+        <TouchableOpacity>
+          <Image
+            source={require("../../assets/images/shelf/menu2.png")}
+            className="w-12 h-12"
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+      </View>
 
         {/* CIRCLE PROGRESS */}
         <View className="items-center mb-6">
@@ -293,65 +384,47 @@ export default function CurrentlyReading() {
           </View>
         </View>
 
-        {/* ===================== NEW LIST ITEMS ===================== */}
-        <View
-          style={{
-            height: 48,
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
-          <Image
-            source={require("../../assets/images/book/clock.png")}
-            style={{
-              width: 20,
-              height: 20,
-              marginRight: 10,
-              tintColor: "#722F37",
-            }}
-            resizeMode="contain"
-          />
-          <Text style={{ fontSize: 16, color: "#141414", fontWeight: "500" }}>
-            At your pace, you’ll finish in 30 days
-          </Text>
-        </View>
-
-        <View
-          style={{
-            height: 48,
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: 10,
-          }}
-        >
-          <Image
-            source={require("../../assets/images/book/calendar.png")}
-            style={{
-              width: 20,
-              height: 20,
-              marginRight: 10,
-              tintColor: "#722F37",
-            }}
-            resizeMode="contain"
-          />
-          <Text style={{ fontSize: 16, color: "#141414", fontWeight: "500" }}>
-            Completion Date: Nov 30, 2025
-          </Text>
-        </View>
+      <View className="mb-4">
+        {daysToComplete !== null && (
+          <View className="flex-row items-center mb-2">
+            <Image
+              source={require("../../assets/images/book/clock.png")}
+              className="w-5 h-5 mr-2"
+              resizeMode="contain"
+            />
+            <Text className="text-[#141414] text-lg">
+              At your pace, you'll finish in {daysToComplete} {daysToComplete === 1 ? 'day' : 'days'}
+            </Text>
+          </View>
+        )}
+        {completionDate && (
+          <View className="flex-row items-center">
+            <Image
+              source={require("../../assets/images/book/calendar.png")}
+              className="w-5 h-5 mr-2"
+              resizeMode="contain"
+            />
+            <Text className="text-[#141414] text-lg">
+              Completion Date: {completionDate.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </Text>
+          </View>
+        )}
+      </View>
 
         <View className="border-t border-gray-200 my-4" />
 
-        {/* ===================== PLAN HEADER ===================== */}
-        <View className="flex-row justify-between items-center mb-2 mt-4">
-          <Text className="text-2xl font-semibold text-[#141414]">
-            Your Reading Plan
-          </Text>
-          <TouchableOpacity onPress={() => setShowEditPopup(true)}>
-            <Text className="text-[#722F37] font-bold underline">
-              Edit Plan
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <View className="flex-row justify-between items-center mb-2 mt-4">
+        <Text className="text-2xl font-semibold text-[#141414]">
+          Your Reading Plan
+        </Text>
+        <TouchableOpacity>
+          <Text className="text-[#722F37] font-bold underline">Edit Plan</Text>
+        </TouchableOpacity>
+      </View>
 
         <View className="flex-row items-center mb-4">
           <Text className="font-semibold text-[#141414] mr-2 text-lg">
@@ -360,9 +433,52 @@ export default function CurrentlyReading() {
           <Text className="text-[#141414] text-lg">{formattedDate}</Text>
         </View>
 
-        {/* ===================== WEEK BAR ===================== */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {weekData.map((day, idx) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {weekData.map((day, idx) => {
+          // Get pages read for this day from reading sessions
+          const dayStr = day.fullDate.toISOString().split("T")[0];
+          const daySessions = readingSessions.filter((session) => {
+            const sessionDate = new Date(session.session_date).toISOString().split("T")[0];
+            return sessionDate === dayStr;
+          });
+          const pagesRead = daySessions.reduce((sum, s) => sum + s.pages_read, 0);
+
+          // Determine if this day should be colored based on reading plan
+          let shouldBeColored = false;
+          let pagesExpected = 0;
+          let isCompleted = false;
+
+          if (readingPlan) {
+            if (readingPlan.plan_type === 'everyday' && readingPlan.pages_per_day) {
+              // Everyday plan: all days should be colored
+              shouldBeColored = true;
+              pagesExpected = readingPlan.pages_per_day;
+            } else if (readingPlan.plan_type === 'weekly' && readingPlan.weekly_schedule) {
+              // Weekly plan: only days with non-zero values should be colored
+              const schedule = readingPlan.weekly_schedule;
+              // Explicitly check if day exists in schedule and convert to number
+              const dayValue = schedule[day.day];
+              // Convert to number and ensure it's a valid positive number
+              pagesExpected = (dayValue !== undefined && dayValue !== null) 
+                ? Number(dayValue) 
+                : 0;
+              // Only color if pagesExpected is explicitly greater than 0
+              // Also check for NaN in case of invalid values
+              shouldBeColored = !isNaN(pagesExpected) && pagesExpected > 0;
+            }
+          }
+
+          // Check if day is completed (pages read >= pages expected)
+          if (shouldBeColored && pagesExpected > 0) {
+            isCompleted = pagesRead >= pagesExpected;
+          }
+
+          // Determine background color for the day card
+          // Half colored means: if it's supposed to be read (shouldBeColored), use beige background
+          const dayBackgroundColor = shouldBeColored ? "#EFDFBB" : "#fff";
+          const dayTextColor = shouldBeColored ? "#722F37" : "#555";
+
+          return (
             <View
               key={idx}
               style={{ alignItems: "center", marginRight: 8, width: 55 }}
@@ -385,22 +501,28 @@ export default function CurrentlyReading() {
                     alignItems: "center",
                   }}
                 >
-                  <Text
-                    style={{ fontSize: 16, fontWeight: "bold", color: "#555" }}
-                  >
-                    -
-                  </Text>
+                  {isCompleted ? (
+                    <Text style={{ color: "#722F37", fontSize: 20, fontWeight: "bold" }}>
+                      ✓
+                    </Text>
+                  ) : (
+                    <Text
+                      style={{ color: "#555", fontSize: 16, fontWeight: "bold" }}
+                    >
+                      {pagesRead > 0 ? pagesRead : "-"}
+                    </Text>
+                  )}
                 </View>
 
                 <View
                   style={{
-                    flex: 1.2,
-                    backgroundColor: "#FDF6E7",
-                    alignItems: "center",
+                    flex: 1.2, 
+                    backgroundColor: dayBackgroundColor,
                     justifyContent: "center",
+                    alignItems: "center",
                   }}
                 >
-                  <Text style={{ fontWeight: "600", color: "#555" }}>
+                  <Text style={{ color: dayTextColor, fontWeight: "600" }}>
                     {day.day}
                   </Text>
                 </View>
@@ -418,145 +540,54 @@ export default function CurrentlyReading() {
                 />
               )}
             </View>
-          ))}
-        </ScrollView>
+          );
+        })}
       </ScrollView>
 
-      {/* ===================== EDIT POPUP ===================== */}
-      <Modal visible={showEditPopup} transparent animationType="fade">
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.3)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              width: width - 40,
-              backgroundColor: "#FFFFFF",
-              borderRadius: 12,
-              padding: 24,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{ fontSize: 18, fontWeight: "bold", color: "#141414" }}
-              >
-                {book.title}
-              </Text>
-              <TouchableOpacity onPress={() => setShowEditPopup(false)}>
-                <Image
-                  source={require("../../assets/images/home/close.png")}
-                  style={{ width: 22, height: 22 }}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => {
-                setShowEditPopup(false);
-                router.push("/(tabs)/book/page2");
-              }}
-              className="h-12 border border-[#EFDFBB] rounded-xl mt-4 flex-row items-center px-3 justify-between"
-            >
-              <Text className="text-base font-medium">Update Reading Plan</Text>
-
-              <ChevronRight size={20} color="#000000" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                setShowEditPopup(false);
-                setShowDeleteConfirm(true);
-              }}
-              className="h-12 border border-[#EFDFBB] rounded-xl mt-3 flex-row items-center px-3 justify-between"
-            >
-              <Text className="text-base font-medium">Delete Book</Text>
-
-              <ChevronRight size={20} color="#000000" />
-            </TouchableOpacity>
-          </View>
+      <View className="flex-row justify-between items-center mt-4 mb-4">
+        <View>
+          <Text className="text-[#141414] font-semibold text-lg">
+            Today's Goal: {readingPlan && readingPlan.plan_type === 'everyday' && readingPlan.pages_per_day
+              ? `${readingPlan.pages_per_day} pages`
+              : readingPlan && readingPlan.plan_type === 'weekly' && readingPlan.weekly_schedule
+              ? (() => {
+                  const today = new Date();
+                  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                  const todayName = dayNames[today.getDay()];
+                  const pages = readingPlan.weekly_schedule[todayName] || 0;
+                  return pages > 0 ? `${pages} pages` : '--';
+                })()
+              : '--'}
+          </Text>
         </View>
-      </Modal>
-
-      {/* ===================== DELETE CONFIRM ===================== */}
-      <Modal visible={showDeleteConfirm} transparent animationType="fade">
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.3)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              width: width - 40,
-              backgroundColor: "#FFFBF2",
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <Text
-              style={{ fontSize: 18, fontWeight: "bold", color: "#141414" }}
-            >
-              Are you sure?
-            </Text>
-
-            <Text style={{ marginTop: 8, marginBottom: 20, fontSize: 14 }}>
-              Do you really want to delete this book? This cannot be undone.
-            </Text>
-
-            <View style={{ flexDirection: "row" }}>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowDeleteConfirm(false);
-                }}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 8,
-                  backgroundColor: "#722F37",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginRight: 5,
-                }}
-              >
-                <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                  Delete
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setShowDeleteConfirm(false)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: "#722F37",
-                  backgroundColor: "transparent",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginLeft: 5,
-                }}
-              >
-                <Text style={{ color: "#722F37", fontWeight: "bold" }}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+        <View>
+          <Text className="text-[#141414] font-semibold text-lg">
+            Next Goal On: {(() => {
+              if (!readingPlan) return '--';
+              
+              const today = new Date();
+              const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+              
+              if (readingPlan.plan_type === 'everyday') {
+                return 'Tomorrow';
+              } else if (readingPlan.plan_type === 'weekly' && readingPlan.weekly_schedule) {
+                // Find next day with pages > 0
+                for (let i = 1; i <= 7; i++) {
+                  const nextDay = new Date(today);
+                  nextDay.setDate(today.getDate() + i);
+                  const nextDayName = dayNames[nextDay.getDay()];
+                  const pages = readingPlan.weekly_schedule[nextDayName] || 0;
+                  if (pages > 0) {
+                    return nextDayName;
+                  }
+                }
+                return '--';
+              }
+              return '--';
+            })()}
+          </Text>
         </View>
-      </Modal>
-    </>
+      </View>
+    </ScrollView>
   );
 }

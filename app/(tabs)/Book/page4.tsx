@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BookService } from "../../../lib/books";
 import { ReadingPlanService } from "../../../lib/reading-plans";
+import { supabase } from "../../../lib/supabase";
 
 export default function Page4() {
   const router = useRouter();
@@ -65,15 +66,37 @@ export default function Page4() {
       return;
     }
 
-    if (!user?.id) {
-      setError("You must be signed in to add a book.");
-      return;
-    }
-
     setError("");
     setLoading(true);
 
     try {
+      // Get user ID - try from store first, then from Supabase session
+      let userId = user?.id;
+      if (!userId) {
+        try {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser?.id) {
+            userId = currentUser.id;
+            // Update the store with the current user
+            useUserStore.getState().setUser(currentUser);
+          } else {
+            setError("You must be signed in to add a book. Please sign in and try again.");
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          setError("Unable to verify your account. Please sign in and try again.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (!userId) {
+        setError("You must be signed in to add a book.");
+        setLoading(false);
+        return;
+      }
+
       // Add book to database
       const { data: book, error: bookError } = await BookService.addBook({
         title: bookName,
@@ -96,7 +119,7 @@ export default function Page4() {
 
       // Add book to user's collection
       const link = await BookService.addBookToUser(
-        user.id,
+        userId,
         book.id,
         "currently_reading"
       );
@@ -119,7 +142,7 @@ export default function Page4() {
 
       // Save weekly reading plan
       const planResult = await ReadingPlanService.createReadingPlan(
-        user.id,
+        userId,
         book.id,
         'weekly',
         undefined,

@@ -1,5 +1,6 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -31,36 +32,44 @@ export default function ReadingNow() {
   const { user } = useUserStore();
 
   // Fetch user books based on active tab
-  useEffect(() => {
-    const fetchBooks = async () => {
-      if (!user?.id) {
-        setLoading(false);
-        return;
-      }
+  const fetchBooks = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
 
-      setLoading(true);
-      try {
-        const status = activeTab === "reading" ? "currently_reading" : "read";
-        const { data, error } = await BookService.getUserBooks(user.id, status);
+    setLoading(true);
+    try {
+      const status = activeTab === "reading" ? "currently_reading" : "read";
+      const { data, error } = await BookService.getUserBooks(user.id, status);
 
-        if (error) {
-          console.error("Error fetching books:", error);
-          setBooksData([]);
-        } else {
-          setBooksData(data || []);
-          setFilteredBooks(data || []);
-        }
-      } catch (error) {
+      if (error) {
         console.error("Error fetching books:", error);
         setBooksData([]);
-        setFilteredBooks([]);
-      } finally {
-        setLoading(false);
+      } else {
+        setBooksData(data || []);
+        setFilteredBooks(data || []);
       }
-    };
-
-    fetchBooks();
+    } catch (error) {
+      console.error("Error fetching books:", error);
+      setBooksData([]);
+      setFilteredBooks([]);
+    } finally {
+      setLoading(false);
+    }
   }, [user?.id, activeTab]);
+
+  // Fetch books on mount and when activeTab changes
+  useEffect(() => {
+    fetchBooks();
+  }, [fetchBooks]);
+
+  // Refetch books when screen comes into focus (e.g., after adding a book)
+  useFocusEffect(
+    useCallback(() => {
+      fetchBooks();
+    }, [fetchBooks])
+  );
 
   // Filter books based on search query
   useEffect(() => {
@@ -245,8 +254,8 @@ export default function ReadingNow() {
                 {searchQuery
                   ? "No books found matching your search."
                   : activeTab === "reading"
-                  ? "You're not reading any books right now. Add a book to get started!"
-                  : "You haven't finished any books yet."}
+                    ? "You're not reading any books right now. Add a book to get started!"
+                    : "You haven't finished any books yet."}
               </Text>
             </View>
           ) : (
@@ -257,7 +266,9 @@ export default function ReadingNow() {
                 style={{ alignItems: "center" }}
               >
                 <TouchableOpacity
-                  onPress={() => router.push(`/currently-reading?bookId=${book.id}`)}
+                  onPress={() =>
+                    router.push(`/currently-reading?bookId=${book.id}`)
+                  }
                   className="flex-1 flex-row border rounded-lg p-5 border-[#EFDFBB] bg-white"
                   style={{ minHeight: 120, opacity: editMode ? 0.8 : 1 }}
                 >
@@ -335,7 +346,9 @@ export default function ReadingNow() {
                     }}
                   >
                     {selectedBooks.includes(book.id) && (
-                      <Text style={{ color: "#fff", fontWeight: "bold" }}>✓</Text>
+                      <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                        ✓
+                      </Text>
                     )}
                   </TouchableOpacity>
                 )}

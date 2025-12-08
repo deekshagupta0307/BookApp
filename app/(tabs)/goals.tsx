@@ -1,33 +1,74 @@
 import { useRouter } from "expo-router";
-import React from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const filteredBooks = [
-  {
-    id: 1,
-    progress: 40,
-    book: {
-      title: "You are Dedicated Reader!",
-      author: "Read 20 Pages Today",
-      page_count: 142,
-      cover_url: null,
-    },
-  },
-  {
-    id: 2,
-    progress: 75,
-    book: {
-      title: "I’m a Reading Insect!",
-      author: "Add a new book",
-      page_count: 210,
-      cover_url: null,
-    },
-  },
-];
+import { useUserStore } from "../../app/store/user-store";
+import { BookService } from "../../lib/books";
+import { AchievementGoal, GoalsService } from "../../lib/goals";
 
 export default function Goals() {
   const router = useRouter();
+  const user = useUserStore((state) => state.user);
+  const firstName = useUserStore((state) => state.firstName);
+  const [goals, setGoals] = useState<AchievementGoal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentLevel, setCurrentLevel] = useState("Rookie Reader");
+  const [completedBooks, setCompletedBooks] = useState(0);
+
+  useEffect(() => {
+    fetchGoals();
+  }, [user?.id]);
+
+  const fetchGoals = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Get user's reading stats
+      const { data: stats } = await BookService.getUserReadingStats(user.id);
+      const booksRead = stats?.totalBooksRead || 0;
+      setCompletedBooks(booksRead);
+
+      // Get current reading level
+      const level = GoalsService.getCurrentReadingLevel(booksRead);
+      setCurrentLevel(level);
+
+      // Fetch achievement goals
+      const { data: achievementGoals, error } =
+        await GoalsService.getAchievementGoals(user.id);
+
+      if (error) {
+        console.error("Error fetching goals:", error);
+      } else if (achievementGoals) {
+        setGoals(achievementGoals);
+      }
+    } catch (error) {
+      console.error("Error in fetchGoals:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-white">
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#722F37" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -37,13 +78,13 @@ export default function Goals() {
         </View>
 
         <View className="bg-white px-5 mt-8">
-          <Text className="text-2xl font-bold">Hi Himanshu!</Text>
+          <Text className="text-2xl font-bold">Hi {firstName || "User"}!</Text>
 
           <View className="flex-row justify-between items-center">
             <View className="w-[70%]">
               <Text className="text-base font-medium mb-8">
-                You’re Currently at{" "}
-                <Text className="font-bold text-base">Rookie Reader</Text>
+                You're Currently at{" "}
+                <Text className="font-bold text-base">{currentLevel}</Text>
               </Text>
             </View>
 
@@ -65,12 +106,12 @@ export default function Goals() {
                 className="w-5 h-5 mr-2"
                 resizeMode="contain"
               />
-              <Text className="text-base font-semibold">5</Text>
+              <Text className="text-base font-semibold">{goals.length}</Text>
             </TouchableOpacity>
           </View>
-          {filteredBooks.map((book) => (
+          {goals.map((goal) => (
             <View
-              key={book.id}
+              key={goal.id}
               className="flex-row items-center mb-4"
               style={{ alignItems: "center" }}
             >
@@ -79,20 +120,11 @@ export default function Goals() {
                 className="flex-1 flex-row border rounded-lg p-5 border-[#EFDFBB] bg-white"
                 style={{ minHeight: 120 }}
               >
-                {book.book?.cover_url ? (
-                  <Image
-                    source={{ uri: book.book.cover_url }}
-                    className="w-10 h-10 mr-4"
-                    resizeMode="contain"
-                    style={{ borderRadius: 4 }}
-                  />
-                ) : (
-                  <Image
-                    source={require("../../assets/images/goals/icon.png")}
-                    className="w-10 h-10 mr-4"
-                    resizeMode="contain"
-                  />
-                )}
+                <Image
+                  source={require("../../assets/images/goals/icon.png")}
+                  className="w-10 h-10 mr-4"
+                  resizeMode="contain"
+                />
 
                 <View className="flex-1 justify-center">
                   <Text
@@ -100,25 +132,26 @@ export default function Goals() {
                     ellipsizeMode="tail"
                     className="text-[#141414] font-semibold text-lg"
                   >
-                    {book.book?.title || "Unknown Book"}
+                    {goal.title}
                   </Text>
 
                   <Text
                     className="text-[#141414] mb-4"
-                    numberOfLines={1}
+                    numberOfLines={2}
                     ellipsizeMode="tail"
                   >
-                    By {book.book?.author || "Unknown Author"}
+                    {goal.description}
                   </Text>
 
                   <View className="flex-row justify-between mb-1">
                     <Text className="text-[#141414] text-sm">
-                      <Text className="font-bold">Completed: </Text>
-                      {book.progress}%
+                      <Text className="font-bold">Progress: </Text>
+                      {goal.progress}%
                     </Text>
                     <Text className="text-[#141414] text-sm">
-                      <Text className="font-bold">Total: </Text>
-                      {book.book?.page_count || "N/A"}
+                      <Text className="font-bold">Target: </Text>
+                      {goal.targetBooks}{" "}
+                      {goal.targetBooks === 1 ? "book" : "books"}
                     </Text>
                   </View>
 
@@ -128,7 +161,7 @@ export default function Goals() {
                   >
                     <View
                       className="h-3 bg-[#722F37] rounded-full"
-                      style={{ width: `${Math.min(book.progress, 100)}%` }}
+                      style={{ width: `${Math.min(goal.progress, 100)}%` }}
                     />
                   </View>
                 </View>

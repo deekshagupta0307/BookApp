@@ -24,7 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
  */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  
+
   return (
     <Tabs
       screenOptions={{
@@ -63,20 +63,7 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {/* Pals Tab */}
-      <Tabs.Screen
-        name="my-pals"
-        options={{
-          title: "Pals",
-          tabBarLabel: "Pals",
-          tabBarIcon: ({ color, focused, size }) => (
-            <View style={styles.iconContainer}>
-              {focused && <View style={styles.activeIndicator} />}
-              <Ionicons name="people" color={color} size={24} />
-            </View>
-          ),
-        }}
-      />
+
       {/* My Shelf Tab */}
       <Tabs.Screen
         name="my-shelf"
@@ -120,6 +107,12 @@ export default function TabsLayout() {
         }}
       />
       {/* Hidden from tab bar - nested routes wrapped in Stack layouts won't appear in tabs */}
+      <Tabs.Screen
+        name="my-pals"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="currently-reading"
         options={{

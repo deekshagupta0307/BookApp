@@ -10,6 +10,8 @@ import {
   View,
 } from "react-native";
 import { BookService } from "../../../lib/books";
+import { GoalsService } from "../../../lib/goals";
+import { ReadingPlanService } from "../../../lib/reading-plans";
 import { supabase } from "../../../lib/supabase";
 import { useUserStore } from "../../store/user-store";
 
@@ -50,9 +52,9 @@ export default function MyProfile() {
 
     // Get unique dates from sessions
     const uniqueDates = new Set(
-      sessions.map(session => {
+      sessions.map((session) => {
         const date = new Date(session.session_date);
-        return date.toISOString().split('T')[0];
+        return date.toISOString().split("T")[0];
       })
     );
 
@@ -62,18 +64,18 @@ export default function MyProfile() {
     // Check if today or yesterday has a session
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-    
+    const todayStr = today.toISOString().split("T")[0];
+
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
 
     // Start counting from today or yesterday
-    let currentDate = sortedDates.includes(todayStr) 
-      ? new Date(today) 
+    let currentDate = sortedDates.includes(todayStr)
+      ? new Date(today)
       : sortedDates.includes(yesterdayStr)
-      ? new Date(yesterday)
-      : null;
+        ? new Date(yesterday)
+        : null;
 
     if (!currentDate) return 0;
 
@@ -81,7 +83,7 @@ export default function MyProfile() {
     let checkDate = new Date(currentDate);
 
     while (true) {
-      const checkDateStr = checkDate.toISOString().split('T')[0];
+      const checkDateStr = checkDate.toISOString().split("T")[0];
       if (sortedDates.includes(checkDateStr)) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);
@@ -93,26 +95,87 @@ export default function MyProfile() {
     return streak;
   };
 
-  // Calculate badges based on milestones
-  const calculateBadges = (booksRead: number, pagesRead: number): number => {
-    let badgeCount = 0;
+  // Calculate badges based on completed achievement goals
+  const calculateBadges = async (userId: string): Promise<number> => {
+    try {
+      const { data: achievementGoals } =
+        await GoalsService.getAchievementGoals(userId);
+      if (!achievementGoals) return 0;
 
-    // Book reading milestones
-    if (booksRead >= 1) badgeCount++;
-    if (booksRead >= 5) badgeCount++;
-    if (booksRead >= 10) badgeCount++;
-    if (booksRead >= 25) badgeCount++;
-    if (booksRead >= 50) badgeCount++;
-    if (booksRead >= 100) badgeCount++;
+      // Count completed goals
+      return achievementGoals.filter((goal) => goal.completed).length;
+    } catch (error) {
+      console.error("Error calculating badges:", error);
+      return 0;
+    }
+  };
 
-    // Page reading milestones
-    if (pagesRead >= 100) badgeCount++;
-    if (pagesRead >= 500) badgeCount++;
-    if (pagesRead >= 1000) badgeCount++;
-    if (pagesRead >= 5000) badgeCount++;
-    if (pagesRead >= 10000) badgeCount++;
+  // Calculate total pages read based on reading plans and days passed
+  const calculateTotalPagesFromPlans = async (
+    userId: string
+  ): Promise<number> => {
+    try {
+      // Fetch all active reading plans
+      const { data: readingPlans, error } =
+        await ReadingPlanService.getUserReadingPlans(userId);
 
-    return badgeCount;
+      if (error || !readingPlans || readingPlans.length === 0) {
+        return 0;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let totalPages = 0;
+
+      for (const plan of readingPlans) {
+        const planStartDate = new Date(plan.created_at);
+        planStartDate.setHours(0, 0, 0, 0);
+
+        // Calculate days passed since plan creation
+        const daysDiff = Math.floor(
+          (today.getTime() - planStartDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        // Only count days that have passed (not including today if plan was created today)
+        const daysPassed = Math.max(0, daysDiff);
+
+        if (plan.plan_type === "everyday" && plan.pages_per_day) {
+          // For everyday plans: days passed * pages per day
+          totalPages += daysPassed * plan.pages_per_day;
+        } else if (plan.plan_type === "weekly" && plan.weekly_schedule) {
+          // For weekly plans: calculate based on weekly schedule
+          const weeklySchedule = plan.weekly_schedule;
+          const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+          // Calculate total pages per week
+          let pagesPerWeek = 0;
+          for (const day of daysOfWeek) {
+            pagesPerWeek += weeklySchedule[day] || 0;
+          }
+
+          // Calculate full weeks passed
+          const fullWeeks = Math.floor(daysPassed / 7);
+
+          // Calculate remaining days in the current week
+          const remainingDays = daysPassed % 7;
+          let remainingPages = 0;
+
+          // Calculate pages for remaining days
+          for (let i = 0; i < remainingDays; i++) {
+            const dayIndex = (planStartDate.getDay() + i) % 7;
+            const dayName = daysOfWeek[dayIndex];
+            remainingPages += weeklySchedule[dayName] || 0;
+          }
+
+          totalPages += fullWeeks * pagesPerWeek + remainingPages;
+        }
+      }
+
+      return totalPages;
+    } catch (error) {
+      console.error("Error calculating total pages from plans:", error);
+      return 0;
+    }
   };
 
   // Fetch user profile and statistics
@@ -127,9 +190,9 @@ export default function MyProfile() {
       try {
         // Fetch user profile from users table
         const { data: profileData, error: profileError } = await supabase
-          .from('users')
-          .select('first_name, last_name, avatar_url, username')
-          .eq('id', user.id)
+          .from("users")
+          .select("first_name, last_name, avatar_url, username")
+          .eq("id", user.id)
           .single();
 
         if (!profileError && profileData) {
@@ -137,33 +200,35 @@ export default function MyProfile() {
         }
 
         // Fetch reading statistics
-        const { data: readingStats, error: statsError } = 
+        const { data: readingStats, error: statsError } =
           await BookService.getUserReadingStats(user.id);
 
         if (!statsError && readingStats) {
-          setStats(prev => ({
+          setStats((prev) => ({
             ...prev,
             booksRead: readingStats.totalBooksRead || 0,
-            pagesRead: readingStats.totalPagesRead || 0,
           }));
         }
 
+        // Calculate total pages read based on reading plans
+        const totalPagesFromPlans = await calculateTotalPagesFromPlans(user.id);
+        setStats((prev) => ({
+          ...prev,
+          pagesRead: totalPagesFromPlans,
+        }));
+
         // Calculate reading streak from reading sessions
-        const { data: sessions, error: sessionsError } = 
+        const { data: sessions, error: sessionsError } =
           await BookService.getUserReadingSessions(user.id);
 
         if (!sessionsError && sessions) {
           const streak = calculateReadingStreak(sessions);
-          setStats(prev => ({ ...prev, daysStreak: streak }));
+          setStats((prev) => ({ ...prev, daysStreak: streak }));
         }
 
-        // Calculate badges based on milestones
-        const badges = calculateBadges(
-          readingStats?.totalBooksRead || 0,
-          readingStats?.totalPagesRead || 0
-        );
-        setStats(prev => ({ ...prev, badges }));
-
+        // Calculate badges based on completed achievement goals
+        const badges = await calculateBadges(user.id);
+        setStats((prev) => ({ ...prev, badges }));
       } catch (error) {
         console.error("Error fetching profile data:", error);
       } finally {
@@ -186,17 +251,17 @@ export default function MyProfile() {
     }
   };
 
-  const displayName = userProfile 
+  const displayName = userProfile
     ? `${userProfile.first_name} ${userProfile.last_name}`.trim()
     : user?.user_metadata?.first_name && user?.user_metadata?.last_name
-    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`.trim()
-    : user?.email?.split('@')[0] || "User";
+      ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`.trim()
+      : user?.email?.split("@")[0] || "User";
 
-  const displayUsername = userProfile?.username 
+  const displayUsername = userProfile?.username
     ? `@${userProfile.username}`
-    : user?.email 
-    ? `@${user.email.split('@')[0]}`
-    : "";
+    : user?.email
+      ? `@${user.email.split("@")[0]}`
+      : "";
 
   if (loading) {
     return (
@@ -241,7 +306,7 @@ export default function MyProfile() {
             Finished
           </Text>
           <Text className="text-md">
-            {stats.booksRead} Book{stats.booksRead !== 1 ? 's' : ''}
+            {stats.booksRead} Book{stats.booksRead !== 1 ? "s" : ""}
           </Text>
         </View>
 
@@ -250,7 +315,8 @@ export default function MyProfile() {
             Total Read
           </Text>
           <Text className="text-md">
-            {formatNumber(stats.pagesRead)} Page{stats.pagesRead !== 1 ? 's' : ''}
+            {formatNumber(stats.pagesRead)} Page
+            {stats.pagesRead !== 1 ? "s" : ""}
           </Text>
         </View>
 

@@ -1,3 +1,4 @@
+import { UserBook } from './books';
 import { supabase } from './supabase';
 
 export interface ReadingPlan {
@@ -161,5 +162,65 @@ export class ReadingPlanService {
       return { data: null, error };
     }
   }
-}
+  // Calculate progress based on pages supposed to be read by today and past days
+  static calculatePlanProgress(userBook: UserBook, readingPlan: ReadingPlan | null | undefined): number {
+    const book = userBook.book;
 
+    // If no plan or book data, return current progress or 0
+    if (!readingPlan || !book) {
+      return userBook.progress || 0;
+    }
+
+    const totalPages = book.page_count || 0;
+    if (totalPages === 0) return 0;
+
+    // Calculate total pages supposed to be read by today (including today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let totalPagesSupposedToRead = 0;
+    const startDate = userBook.started_at
+      ? new Date(userBook.started_at)
+      : new Date(readingPlan.created_at);
+    startDate.setHours(0, 0, 0, 0);
+
+    if (readingPlan.plan_type === "everyday" && readingPlan.pages_per_day) {
+      // For everyday plan: count all days from start to today (inclusive)
+      const daysDiff = Math.max(
+        0,
+        Math.floor(
+          (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+        ) + 1
+      );
+      totalPagesSupposedToRead = daysDiff * readingPlan.pages_per_day;
+    } else if (
+      readingPlan.plan_type === "weekly" &&
+      readingPlan.weekly_schedule
+    ) {
+      // For weekly plan: count only scheduled days from start to today
+      const schedule = readingPlan.weekly_schedule;
+      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+      let currentDate = new Date(startDate);
+      // Clone today to avoid modification loop issues if any, comparison is safe
+      const compareToday = new Date(today);
+
+      while (currentDate <= compareToday) {
+        const dayName = dayNames[currentDate.getDay()];
+        const pagesForDay = schedule[dayName] || 0;
+        totalPagesSupposedToRead += pagesForDay;
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+
+    // Progress percentage is based on pages supposed to be read by today (including today)
+    // This shows how much of the book should have been read according to the plan
+    const progressPercentage = Math.min(
+      100,
+      (totalPagesSupposedToRead / totalPages) * 100
+    );
+
+    // Return percentage (0-100)
+    return Math.round(progressPercentage);
+  }
+}

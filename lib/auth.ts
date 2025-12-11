@@ -134,6 +134,16 @@ export class AuthService {
     }
   }
 
+  // Update user data
+  static async updateUser(attributes: any): Promise<{ data: any; error: AuthError | null }> {
+    try {
+      const { data, error } = await supabase.auth.updateUser(attributes);
+      return { data, error };
+    } catch (error) {
+      return { data: null, error: error as AuthError };
+    }
+  }
+
   // Sign in with Google OAuth - returns URL to open in browser
   static async signInWithGoogle(): Promise<{ error: AuthError | null; url?: string }> {
     try {
@@ -146,7 +156,7 @@ export class AuthService {
         },
       });
 
-      return { error, url: data?.url };
+      return { error, url: data?.url || undefined };
     } catch (error) {
       return { error: error as AuthError };
     }
@@ -164,7 +174,7 @@ export class AuthService {
         },
       });
 
-      return { error, url: data?.url };
+      return { error, url: data?.url || undefined };
     } catch (error) {
       return { error: error as AuthError };
     }

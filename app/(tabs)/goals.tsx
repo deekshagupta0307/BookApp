@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useUserStore } from "../../app/store/user-store";
 import { BookService } from "../../lib/books";
 import { AchievementGoal, GoalsService } from "../../lib/goals";
+import { StreakService } from "../../lib/streak";
 
 export default function Goals() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function Goals() {
   const [loading, setLoading] = useState(true);
   const [currentLevel, setCurrentLevel] = useState("Rookie Reader");
   const [completedBooks, setCompletedBooks] = useState(0);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     fetchGoals();
@@ -43,6 +45,10 @@ export default function Goals() {
       // Get current reading level
       const level = GoalsService.getCurrentReadingLevel(booksRead);
       setCurrentLevel(level);
+
+      // Get streak
+      const currentStreak = await StreakService.checkAndIncrementStreak(user);
+      setStreak(currentStreak);
 
       // Fetch achievement goals
       const { data: achievementGoals, error } =
@@ -98,7 +104,17 @@ export default function Goals() {
           <View className="w-full h-[1px] bg-gray-300 mt-4 mb-4" />
 
           <View className="flex-row justify-between items-center mb-4 mt-8">
-            <Text className="text-xl font-semibold ">My Goals</Text>
+            <View className="flex-row items-center">
+              <Text className="text-xl font-semibold mr-4">My Goals</Text>
+              <View className="flex-row items-center px-3 py-1 rounded-full border border-[#EFDFBB] bg-[#FDF6E7]">
+                <Image
+                  source={require("../../assets/images/home/fire.png")}
+                  className="w-4 h-4 mr-1"
+                  resizeMode="contain"
+                />
+                <Text className="font-semibold text-[#141414] text-sm">{streak}</Text>
+              </View>
+            </View>
 
             <TouchableOpacity className="flex-row items-center bg-[#FDF6E7] border border-[#EFDFBB] rounded-full px-4 py-2">
               <Image
@@ -116,7 +132,7 @@ export default function Goals() {
               style={{ alignItems: "center" }}
             >
               <TouchableOpacity
-                onPress={() => {}}
+                onPress={() => { }}
                 className="flex-1 flex-row border rounded-lg p-5 border-[#EFDFBB] bg-white"
                 style={{ minHeight: 120 }}
               >

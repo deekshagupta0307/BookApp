@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { BookService, UserBook } from "../../../lib/books";
+import { ReadingPlan, ReadingPlanService } from "../../../lib/reading-plans";
 import { useUserStore } from "../../store/user-store";
 
 const { width } = Dimensions.get("window");
@@ -21,6 +22,7 @@ export default function ReadingNow() {
   const [activeTab, setActiveTab] = useState<"reading" | "finished">("reading");
   const [booksData, setBooksData] = useState<UserBook[]>([]);
   const [filteredBooks, setFilteredBooks] = useState<UserBook[]>([]);
+  const [readingPlans, setReadingPlans] = useState<Record<string, ReadingPlan>>({});
   const [editMode, setEditMode] = useState(false);
   const [selectedBooks, setSelectedBooks] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -49,6 +51,16 @@ export default function ReadingNow() {
       } else {
         setBooksData(data || []);
         setFilteredBooks(data || []);
+
+        // Fetch reading plans
+        const { data: plans } = await ReadingPlanService.getUserReadingPlans(user.id);
+        if (plans) {
+          const plansMap: Record<string, ReadingPlan> = {};
+          plans.forEach((plan) => {
+            plansMap[plan.book_id] = plan;
+          });
+          setReadingPlans(plansMap);
+        }
       }
     } catch (error) {
       console.error("Error fetching books:", error);
@@ -304,7 +316,10 @@ export default function ReadingNow() {
                     <View className="flex-row justify-between mb-1">
                       <Text className="text-[#141414] text-sm">
                         <Text className="font-bold">Completed: </Text>
-                        {book.progress}%
+                        {ReadingPlanService.calculatePlanProgress(
+                          book,
+                          readingPlans[book.book_id]
+                        )}%
                       </Text>
                       <Text className="text-[#141414] text-sm">
                         <Text className="font-bold">Total Pages: </Text>
@@ -317,7 +332,15 @@ export default function ReadingNow() {
                     >
                       <View
                         className="h-3 bg-[#722F37] rounded-full"
-                        style={{ width: `${Math.min(book.progress, 100)}%` }}
+                        style={{
+                          width: `${Math.min(
+                            ReadingPlanService.calculatePlanProgress(
+                              book,
+                              readingPlans[book.book_id]
+                            ),
+                            100
+                          )}%`,
+                        }}
                       />
                     </View>
                   </View>

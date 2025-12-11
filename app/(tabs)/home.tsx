@@ -11,6 +11,8 @@ import {
   View,
 } from "react-native";
 import { BookService, UserBook } from "../../lib/books";
+import { ReadingPlan, ReadingPlanService } from "../../lib/reading-plans";
+import { StreakService } from "../../lib/streak";
 import { useUserStore } from "../store/user-store";
 
 const { width } = Dimensions.get("window");
@@ -25,7 +27,9 @@ export default function HomePage() {
   >([]);
   const [finishedBooks, setFinishedBooks] = useState<UserBook[]>([]);
   const [pagesReadToday, setPagesReadToday] = useState(0);
+  const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [readingPlans, setReadingPlans] = useState<Record<string, ReadingPlan>>({});
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString("en-US", {
@@ -77,6 +81,20 @@ export default function HomePage() {
           .reduce((sum, session) => sum + session.pages_read, 0);
         setPagesReadToday(todayPages);
       }
+
+      const { data: plans } = await ReadingPlanService.getUserReadingPlans(user.id);
+      if (plans) {
+        const plansMap: Record<string, ReadingPlan> = {};
+        plans.forEach((plan) => {
+          plansMap[plan.book_id] = plan;
+        });
+        setReadingPlans(plansMap);
+      }
+
+      // Update Streak
+      const currentStreak = await StreakService.checkAndIncrementStreak(user);
+      setStreak(currentStreak);
+
     } catch (error) {
       console.error("Error fetching user books:", error);
     } finally {
@@ -141,7 +159,10 @@ export default function HomePage() {
             <View className="flex-row justify-between mb-1">
               <Text className="text-[#141414] text-sm">
                 <Text className="font-bold">Completed: </Text>
-                {userBook.progress}%
+                {ReadingPlanService.calculatePlanProgress(
+                  userBook,
+                  readingPlans[userBook.book_id]
+                )}%
               </Text>
               <Text className="text-[#141414] text-sm">
                 <Text className="font-bold">Total Pages: </Text>
@@ -155,7 +176,15 @@ export default function HomePage() {
             >
               <View
                 className="h-3 bg-[#722F37] rounded-full"
-                style={{ width: `${Math.min(userBook.progress, 100)}%` }}
+                style={{
+                  width: `${Math.min(
+                    ReadingPlanService.calculatePlanProgress(
+                      userBook,
+                      readingPlans[userBook.book_id]
+                    ),
+                    100
+                  )}%`,
+                }}
               />
             </View>
           </View>
@@ -227,7 +256,7 @@ export default function HomePage() {
             className="w-5 h-5 mr-2"
             resizeMode="contain"
           />
-          <Text className="font-semibold text-[#141414]">5</Text>
+          <Text className="font-semibold text-[#141414]">{streak}</Text>
         </View>
       </View>
 
@@ -268,7 +297,7 @@ export default function HomePage() {
                   {desc}
                 </Text>
               </View>
-             
+
             );
           })}
         </ScrollView>

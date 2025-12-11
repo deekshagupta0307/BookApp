@@ -12,6 +12,7 @@ import {
 import { BookService } from "../../../lib/books";
 import { GoalsService } from "../../../lib/goals";
 import { ReadingPlanService } from "../../../lib/reading-plans";
+import { StreakService } from "../../../lib/streak";
 import { supabase } from "../../../lib/supabase";
 import { useUserStore } from "../../store/user-store";
 
@@ -46,54 +47,7 @@ export default function MyProfile() {
   });
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Calculate reading streak (consecutive days with reading sessions)
-  const calculateReadingStreak = (sessions: any[]): number => {
-    if (!sessions || sessions.length === 0) return 0;
-
-    // Get unique dates from sessions
-    const uniqueDates = new Set(
-      sessions.map((session) => {
-        const date = new Date(session.session_date);
-        return date.toISOString().split("T")[0];
-      })
-    );
-
-    const sortedDates = Array.from(uniqueDates).sort().reverse();
-    if (sortedDates.length === 0) return 0;
-
-    // Check if today or yesterday has a session
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split("T")[0];
-
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-    // Start counting from today or yesterday
-    let currentDate = sortedDates.includes(todayStr)
-      ? new Date(today)
-      : sortedDates.includes(yesterdayStr)
-        ? new Date(yesterday)
-        : null;
-
-    if (!currentDate) return 0;
-
-    let streak = 0;
-    let checkDate = new Date(currentDate);
-
-    while (true) {
-      const checkDateStr = checkDate.toISOString().split("T")[0];
-      if (sortedDates.includes(checkDateStr)) {
-        streak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-
-    return streak;
-  };
+  // Streak calculation moved to StreakService
 
   // Calculate badges based on completed achievement goals
   const calculateBadges = async (userId: string): Promise<number> => {
@@ -217,14 +171,9 @@ export default function MyProfile() {
           pagesRead: totalPagesFromPlans,
         }));
 
-        // Calculate reading streak from reading sessions
-        const { data: sessions, error: sessionsError } =
-          await BookService.getUserReadingSessions(user.id);
-
-        if (!sessionsError && sessions) {
-          const streak = calculateReadingStreak(sessions);
-          setStats((prev) => ({ ...prev, daysStreak: streak }));
-        }
+        // Calculate login streak using StreakService
+        const streak = await StreakService.checkAndIncrementStreak(user);
+        setStats((prev) => ({ ...prev, daysStreak: streak }));
 
         // Calculate badges based on completed achievement goals
         const badges = await calculateBadges(user.id);

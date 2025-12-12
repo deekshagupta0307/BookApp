@@ -1,10 +1,13 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 // Replace these with your actual Supabase project URL and anon key
 // You'll get these from your Supabase dashboard
-const supabaseUrl = 'https://zantaojwzfcjmmqvjywx.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphbnRhb2p3emZjam1tcXZqeXd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MTc2NTQsImV4cCI6MjA3NTQ5MzY1NH0.t0Q0jg_Sy8LOvBrKcTOWBSyjFxO-93oTlagoqaQKL_8';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn("Supabase configuration is missing!");
+}
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     // Enable automatic session refresh
@@ -80,7 +83,7 @@ export interface Database {
           id: string;
           user_id: string;
           book_id: string;
-          status: 'want_to_read' | 'currently_reading' | 'read';
+          status: "want_to_read" | "currently_reading" | "read";
           progress: number;
           created_at: string;
           updated_at: string;
@@ -89,7 +92,7 @@ export interface Database {
           id?: string;
           user_id: string;
           book_id: string;
-          status: 'want_to_read' | 'currently_reading' | 'read';
+          status: "want_to_read" | "currently_reading" | "read";
           progress?: number;
           created_at?: string;
           updated_at?: string;
@@ -98,7 +101,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           book_id?: string;
-          status?: 'want_to_read' | 'currently_reading' | 'read';
+          status?: "want_to_read" | "currently_reading" | "read";
           progress?: number;
           created_at?: string;
           updated_at?: string;

@@ -218,12 +218,12 @@ export default function CurrentlyReading() {
       : new Date(readingPlan.created_at);
     startDate.setHours(0, 0, 0, 0);
 
-    // Calculate days passed since plan/start date
+    // Calculate days passed since plan/start date (including today)
     const daysDiff = Math.floor(
       (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    ) + 1;
 
-    // Only count days that have passed (not including today)
+    // Only count days that have passed (should be at least 1 if started today)
     const daysPassed = Math.max(0, daysDiff);
 
     let completedPages = 0;
@@ -302,8 +302,8 @@ export default function CurrentlyReading() {
   const completionDate = calculateCompletionDate();
   const daysToComplete = completionDate
     ? Math.ceil(
-        (completionDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-      )
+      (completionDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    )
     : null;
 
   if (loading) {
@@ -656,27 +656,27 @@ export default function CurrentlyReading() {
           <Text className="text-[#141414] font-semibold text-lg">
             Today's Goal:{" "}
             {readingPlan &&
-            readingPlan.plan_type === "everyday" &&
-            readingPlan.pages_per_day
+              readingPlan.plan_type === "everyday" &&
+              readingPlan.pages_per_day
               ? `${readingPlan.pages_per_day} pages`
               : readingPlan &&
-                  readingPlan.plan_type === "weekly" &&
-                  readingPlan.weekly_schedule
+                readingPlan.plan_type === "weekly" &&
+                readingPlan.weekly_schedule
                 ? (() => {
-                    const today = new Date();
-                    const dayNames = [
-                      "Sun",
-                      "Mon",
-                      "Tue",
-                      "Wed",
-                      "Thu",
-                      "Fri",
-                      "Sat",
-                    ];
-                    const todayName = dayNames[today.getDay()];
-                    const pages = readingPlan.weekly_schedule[todayName] || 0;
-                    return pages > 0 ? `${pages} pages` : "--";
-                  })()
+                  const today = new Date();
+                  const dayNames = [
+                    "Sun",
+                    "Mon",
+                    "Tue",
+                    "Wed",
+                    "Thu",
+                    "Fri",
+                    "Sat",
+                  ];
+                  const todayName = dayNames[today.getDay()];
+                  const pages = readingPlan.weekly_schedule[todayName] || 0;
+                  return pages > 0 ? `${pages} pages` : "--";
+                })()
                 : "--"}
           </Text>
         </View>

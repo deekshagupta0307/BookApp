@@ -1,4 +1,13 @@
+import { ReadingPlanService } from './reading-plans';
 import { supabase } from './supabase';
+
+export const BookStatus = {
+  WANT_TO_READ: 'want_to_read',
+  CURRENTLY_READING: 'currently_reading',
+  READ: 'read',
+} as const;
+
+export type BookStatusType = typeof BookStatus[keyof typeof BookStatus];
 
 export interface Book {
   id: string;
@@ -18,7 +27,7 @@ export interface UserBook {
   id: string;
   user_id: string;
   book_id: string;
-  status: 'want_to_read' | 'currently_reading' | 'read';
+  status: BookStatusType;
   progress: number;
   rating?: number;
   review?: string;
@@ -37,6 +46,12 @@ export interface ReadingSession {
   session_duration: number;
   session_date: string;
   created_at: string;
+}
+
+export interface CategorizedBooks {
+  wantToRead: UserBook[];
+  currentlyReading: UserBook[];
+  read: UserBook[];
 }
 
 export class BookService {
@@ -79,7 +94,7 @@ export class BookService {
   }
 
   // Get user's books
-  static async getUserBooks(userId: string, status?: string): Promise<{ data: UserBook[] | null; error: any }> {
+  static async getUserBooks(userId: string, status?: BookStatusType): Promise<{ data: UserBook[] | null; error: any }> {
     try {
       let query = supabase
         .from('user_books')
@@ -102,7 +117,7 @@ export class BookService {
   }
 
   // Add book to user's collection
-  static async addBookToUser(userId: string, bookId: string, status: 'want_to_read' | 'currently_reading' | 'read' = 'want_to_read'): Promise<{ data: UserBook | null; error: any }> {
+  static async addBookToUser(userId: string, bookId: string, status: BookStatusType = BookStatus.WANT_TO_READ): Promise<{ data: UserBook | null; error: any }> {
     try {
       console.log("Linking book to user:", { userId, bookId, status });
       const { data, error } = await supabase
@@ -219,17 +234,95 @@ export class BookService {
     }
   }
 
+  // Get categorized user books (Correctly handles "finished" based on plan progress and actual pages read)
+  static async getCategorizedUserBooks(userId: string): Promise<{ data: CategorizedBooks | null; error: any }> {
+    try {
+      // 1. Fetch all user books
+      const { data: allBooks, error: booksError } = await this.getUserBooks(userId);
+      if (booksError || !allBooks) return { data: null, error: booksError };
+
+      // 2. Fetch all reading plans
+      const { data: plans, error: plansError } = await ReadingPlanService.getUserReadingPlans(userId);
+      if (plansError) console.warn("Error fetching plans for categorization:", plansError);
+
+      const plansMap: Record<string, any> = {};
+      if (plans) {
+        plans.forEach((plan) => {
+          if (!plansMap[plan.book_id]) {
+            plansMap[plan.book_id] = plan;
+          }
+        });
+      }
+
+      // 3. Fetch all reading sessions to calculate actual progress
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('reading_sessions')
+        .select('book_id, pages_read')
+        .eq('user_id', userId);
+
+      if (sessionsError) console.warn("Error fetching sessions for categorization:", sessionsError);
+
+      const sessionsMap: Record<string, number> = {};
+      if (sessions) {
+        sessions.forEach((session) => {
+          sessionsMap[session.book_id] = (sessionsMap[session.book_id] || 0) + session.pages_read;
+        });
+      }
+
+      // 4. Categorize
+      const categorized: CategorizedBooks = {
+        wantToRead: [],
+        currentlyReading: [],
+        read: [],
+      };
+
+      for (const userBook of allBooks) {
+        // If explicitly read, it's read
+        if (userBook.status === BookStatus.READ) {
+          categorized.read.push(userBook);
+          continue;
+        }
+
+        // If want to read, it's want to read
+        if (userBook.status === BookStatus.WANT_TO_READ) {
+          categorized.wantToRead.push(userBook);
+          continue;
+        }
+
+        // If currently reading, check plan progress AND actual pages read
+        if (userBook.status === BookStatus.CURRENTLY_READING) {
+          const plan = plansMap[userBook.book_id];
+          const planProgress = ReadingPlanService.calculatePlanProgress(userBook, plan);
+
+          // Check actual pages read
+          const totalPagesRead = sessionsMap[userBook.book_id] || 0;
+          const bookPageCount = userBook.book?.page_count || 0;
+          const isActuallyFinished = bookPageCount > 0 && totalPagesRead >= bookPageCount;
+
+          if (planProgress >= 100 || isActuallyFinished) {
+            // Calculated as finished (either by time or by actual pages read)
+            categorized.read.push(userBook);
+          } else {
+            categorized.currentlyReading.push(userBook);
+          }
+        }
+      }
+
+      return { data: categorized, error: null };
+    } catch (error) {
+      console.error("Error categorizing books:", error);
+      return { data: null, error };
+    }
+  }
+
   // Get user's reading statistics
   static async getUserReadingStats(userId: string): Promise<{ data: any; error: any }> {
     try {
-      // Get total books read
-      const { data: booksRead, error: booksError } = await supabase
-        .from('user_books')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('status', 'read');
+      // Get books via categorized method to ensure consistent "Finished" count
+      const { data: categorized, error: catError } = await this.getCategorizedUserBooks(userId);
+      if (catError) throw catError;
 
-      if (booksError) throw booksError;
+      const totalBooksRead = categorized?.read.length || 0;
 
       // Get total pages read
       const { data: pagesRead, error: pagesError } = await supabase
@@ -248,7 +341,7 @@ export class BookService {
       if (timeError) throw timeError;
 
       const stats = {
-        totalBooksRead: booksRead?.length || 0,
+        totalBooksRead: totalBooksRead,
         totalPagesRead: pagesRead?.reduce((sum, session) => sum + session.pages_read, 0) || 0,
         totalReadingTime: readingTime?.reduce((sum, session) => sum + session.session_duration, 0) || 0,
       };
@@ -261,16 +354,19 @@ export class BookService {
 
   // Get currently reading books
   static async getCurrentlyReadingBooks(userId: string): Promise<{ data: UserBook[] | null; error: any }> {
-    return this.getUserBooks(userId, 'currently_reading');
+    const { data, error } = await this.getCategorizedUserBooks(userId);
+    return { data: data?.currentlyReading || null, error };
   }
 
   // Get want to read books
   static async getWantToReadBooks(userId: string): Promise<{ data: UserBook[] | null; error: any }> {
-    return this.getUserBooks(userId, 'want_to_read');
+    const { data, error } = await this.getCategorizedUserBooks(userId);
+    return { data: data?.wantToRead || null, error };
   }
 
   // Get read books
   static async getReadBooks(userId: string): Promise<{ data: UserBook[] | null; error: any }> {
-    return this.getUserBooks(userId, 'read');
+    const { data, error } = await this.getCategorizedUserBooks(userId);
+    return { data: data?.read || null, error };
   }
 }

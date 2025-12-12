@@ -42,8 +42,13 @@ export default function ReadingNow() {
 
     setLoading(true);
     try {
-      const status = activeTab === "reading" ? "currently_reading" : "read";
-      const { data, error } = await BookService.getUserBooks(user.id, status);
+      let data, error;
+
+      if (activeTab === "reading") {
+        ({ data, error } = await BookService.getCurrentlyReadingBooks(user.id));
+      } else {
+        ({ data, error } = await BookService.getReadBooks(user.id));
+      }
 
       if (error) {
         console.error("Error fetching books:", error);

@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -24,9 +24,11 @@ export default function Goals() {
   const [completedBooks, setCompletedBooks] = useState(0);
   const [streak, setStreak] = useState(0);
 
-  useEffect(() => {
-    fetchGoals();
-  }, [user?.id]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchGoals();
+    }, [user?.id])
+  );
 
   const fetchGoals = async () => {
     if (!user?.id) {

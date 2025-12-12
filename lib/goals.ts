@@ -84,8 +84,8 @@ export class GoalsService {
               goal_type: 'books_per_year',
               target_value: achievement.targetBooks,
               current_value: 0,
-              start_date: startDate.toISOString().split('T')[0],
-              end_date: endDate.toISOString().split('T')[0],
+              start_date: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`,
+              end_date: `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`,
               is_active: true,
             })
             .select()

@@ -1,4 +1,4 @@
-import { UserBook } from './books';
+import type { UserBook } from './books';
 import { supabase } from './supabase';
 
 export interface ReadingPlan {

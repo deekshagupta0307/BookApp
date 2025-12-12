@@ -43,16 +43,6 @@ CREATE TABLE public.user_books (
   UNIQUE(user_id, book_id)
 );
 
--- Create reading_sessions table (for tracking reading progress)
-CREATE TABLE public.reading_sessions (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-  book_id UUID REFERENCES public.books(id) ON DELETE CASCADE NOT NULL,
-  pages_read INTEGER DEFAULT 0,
-  session_duration INTEGER DEFAULT 0, -- in minutes
-  session_date DATE DEFAULT CURRENT_DATE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
 
 -- Create user_friends table (for the "My Pals" feature)
 CREATE TABLE public.user_friends (
@@ -99,8 +89,6 @@ CREATE INDEX idx_books_title ON public.books(title);
 CREATE INDEX idx_books_author ON public.books(author);
 CREATE INDEX idx_user_books_user_id ON public.user_books(user_id);
 CREATE INDEX idx_user_books_status ON public.user_books(status);
-CREATE INDEX idx_reading_sessions_user_id ON public.reading_sessions(user_id);
-CREATE INDEX idx_reading_sessions_date ON public.reading_sessions(session_date);
 CREATE INDEX idx_user_friends_user_id ON public.user_friends(user_id);
 CREATE INDEX idx_user_friends_status ON public.user_friends(status);
 CREATE INDEX idx_reading_goals_user_id ON public.reading_goals(user_id);
@@ -112,7 +100,6 @@ CREATE INDEX idx_reading_plans_type ON public.reading_plans(plan_type);
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.books ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_books ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reading_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_friends ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reading_goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reading_plans ENABLE ROW LEVEL SECURITY;
@@ -160,19 +147,6 @@ CREATE POLICY "Users can update own books" ON public.user_books
   FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own books" ON public.user_books
-  FOR DELETE USING (auth.uid() = user_id);
-
--- Reading sessions policies
-CREATE POLICY "Users can view own reading sessions" ON public.reading_sessions
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own reading sessions" ON public.reading_sessions
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own reading sessions" ON public.reading_sessions
-  FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own reading sessions" ON public.reading_sessions
   FOR DELETE USING (auth.uid() = user_id);
 
 -- User friends policies

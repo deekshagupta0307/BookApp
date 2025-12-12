@@ -1,5 +1,6 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -11,7 +12,6 @@ import {
 } from "react-native";
 import { BookService } from "../../../lib/books";
 import { GoalsService } from "../../../lib/goals";
-import { ReadingPlanService } from "../../../lib/reading-plans";
 import { StreakService } from "../../../lib/streak";
 import { supabase } from "../../../lib/supabase";
 import { useUserStore } from "../../store/user-store";
@@ -64,129 +64,57 @@ export default function MyProfile() {
     }
   };
 
-  // Calculate total pages read based on reading plans and days passed
-  const calculateTotalPagesFromPlans = async (
-    userId: string
-  ): Promise<number> => {
-    try {
-      // Fetch all active reading plans
-      const { data: readingPlans, error } =
-        await ReadingPlanService.getUserReadingPlans(userId);
-
-      if (error || !readingPlans || readingPlans.length === 0) {
-        return 0;
-      }
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      let totalPages = 0;
-
-      for (const plan of readingPlans) {
-        const planStartDate = new Date(plan.created_at);
-        planStartDate.setHours(0, 0, 0, 0);
-
-        // Calculate days passed since plan creation
-        const daysDiff = Math.floor(
-          (today.getTime() - planStartDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
-
-        // Only count days that have passed (not including today if plan was created today)
-        const daysPassed = Math.max(0, daysDiff);
-
-        if (plan.plan_type === "everyday" && plan.pages_per_day) {
-          // For everyday plans: days passed * pages per day
-          totalPages += daysPassed * plan.pages_per_day;
-        } else if (plan.plan_type === "weekly" && plan.weekly_schedule) {
-          // For weekly plans: calculate based on weekly schedule
-          const weeklySchedule = plan.weekly_schedule;
-          const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-          // Calculate total pages per week
-          let pagesPerWeek = 0;
-          for (const day of daysOfWeek) {
-            pagesPerWeek += weeklySchedule[day] || 0;
-          }
-
-          // Calculate full weeks passed
-          const fullWeeks = Math.floor(daysPassed / 7);
-
-          // Calculate remaining days in the current week
-          const remainingDays = daysPassed % 7;
-          let remainingPages = 0;
-
-          // Calculate pages for remaining days
-          for (let i = 0; i < remainingDays; i++) {
-            const dayIndex = (planStartDate.getDay() + i) % 7;
-            const dayName = daysOfWeek[dayIndex];
-            remainingPages += weeklySchedule[dayName] || 0;
-          }
-
-          totalPages += fullWeeks * pagesPerWeek + remainingPages;
-        }
-      }
-
-      return totalPages;
-    } catch (error) {
-      console.error("Error calculating total pages from plans:", error);
-      return 0;
-    }
-  };
-
   // Fetch user profile and statistics
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      if (!user?.id) {
-        setLoading(false);
-        return;
+  const fetchProfileData = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Fetch user profile from users table
+      const { data: profileData, error: profileError } = await supabase
+        .from("users")
+        .select("first_name, last_name, avatar_url, username")
+        .eq("id", user.id)
+        .single();
+
+      if (!profileError && profileData) {
+        setUserProfile(profileData);
       }
 
-      setLoading(true);
-      try {
-        // Fetch user profile from users table
-        const { data: profileData, error: profileError } = await supabase
-          .from("users")
-          .select("first_name, last_name, avatar_url, username")
-          .eq("id", user.id)
-          .single();
+      // Fetch reading statistics
+      const { data: readingStats, error: statsError } =
+        await BookService.getUserReadingStats(user.id);
 
-        if (!profileError && profileData) {
-          setUserProfile(profileData);
-        }
-
-        // Fetch reading statistics
-        const { data: readingStats, error: statsError } =
-          await BookService.getUserReadingStats(user.id);
-
-        if (!statsError && readingStats) {
-          setStats((prev) => ({
-            ...prev,
-            booksRead: readingStats.totalBooksRead || 0,
-          }));
-        }
-
-        // Calculate total pages read based on reading plans
-        const totalPagesFromPlans = await calculateTotalPagesFromPlans(user.id);
+      if (!statsError && readingStats) {
         setStats((prev) => ({
           ...prev,
-          pagesRead: totalPagesFromPlans,
+          booksRead: readingStats.totalBooksRead || 0,
+          pagesRead: readingStats.totalPagesRead || 0,
         }));
-
-        // Calculate login streak using StreakService
-        const streak = await StreakService.checkAndIncrementStreak(user);
-        setStats((prev) => ({ ...prev, daysStreak: streak }));
-
-        // Calculate badges based on completed achievement goals
-        const badges = await calculateBadges(user.id);
-        setStats((prev) => ({ ...prev, badges }));
-      } catch (error) {
-        console.error("Error fetching profile data:", error);
-      } finally {
-        setLoading(false);
       }
-    };
 
-    fetchProfileData();
+      // Calculate login streak using StreakService
+      const streak = await StreakService.checkAndIncrementStreak(user);
+      setStats((prev) => ({ ...prev, daysStreak: streak }));
+
+      // Calculate badges based on completed achievement goals
+      const badges = await calculateBadges(user.id);
+      setStats((prev) => ({ ...prev, badges }));
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfileData();
+    }, [fetchProfileData])
+  );
 
   const handleLogout = async () => {
     setIsLoggingOut(true);

@@ -1,6 +1,6 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router"; // import router
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -48,22 +48,14 @@ export default function HomePage() {
 
     setLoading(true);
     try {
-      // Fetch currently reading books
-      const { data: readingData, error: readingError } = await BookService.getUserBooks(
-        user.id,
-        "currently_reading"
+      // Fetch all books categorized
+      const { data: categorizedData, error: categorizedError } = await BookService.getCategorizedUserBooks(
+        user.id
       );
-      if (!readingError && readingData) {
-        setCurrentlyReadingBooks(readingData);
-      }
 
-      // Fetch finished books
-      const { data: finishedData, error: finishedError } = await BookService.getUserBooks(
-        user.id,
-        "read"
-      );
-      if (!finishedError && finishedData) {
-        setFinishedBooks(finishedData);
+      if (!categorizedError && categorizedData) {
+        setCurrentlyReadingBooks(categorizedData.currentlyReading);
+        setFinishedBooks(categorizedData.read);
       }
 
       // Fetch pages read today
@@ -101,11 +93,6 @@ export default function HomePage() {
       setLoading(false);
     }
   }, [user?.id]);
-
-  // Fetch on mount and when user changes
-  useEffect(() => {
-    fetchUserBooks();
-  }, [fetchUserBooks]);
 
   // Refetch when screen comes into focus
   useFocusEffect(

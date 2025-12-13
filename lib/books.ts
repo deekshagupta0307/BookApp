@@ -324,30 +324,47 @@ export class BookService {
 
       const totalBooksRead = categorized?.read.length || 0;
 
-      // Get total pages read
-      const { data: pagesRead, error: pagesError } = await supabase
+      // Get all reading sessions
+      const { data: sessions, error: sessionsError } = await supabase
         .from('reading_sessions')
-        .select('pages_read')
+        .select('*') // Select all fields to get dates
         .eq('user_id', userId);
 
-      if (pagesError) throw pagesError;
+      if (sessionsError) throw sessionsError;
 
-      // Get total reading time
-      const { data: readingTime, error: timeError } = await supabase
-        .from('reading_sessions')
-        .select('session_duration')
-        .eq('user_id', userId);
+      // Calculate total pages read
+      const totalPagesRead = sessions?.reduce((sum, session) => sum + session.pages_read, 0) || 0;
+      // Calculate total reading time
+      const totalReadingTime = sessions?.reduce((sum, session) => sum + session.session_duration, 0) || 0;
 
-      if (timeError) throw timeError;
+      // Calculate pages read today
+      // Use local date string comparison for "Today"
+      const todayDate = new Date();
+      const todayStr = todayDate.toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
 
+      const pagesReadToday = sessions?.filter((session) => {
+        // Assume session_date is stored as YYYY-MM-DD or ISO string. 
+        // If ISO (UTC), we need to be careful. 
+        // Usually session_date from app is just the date part string or full ISO.
+        // Let's safe parse it.
+        if (!session.session_date) return false;
+
+        // If session_date is a simple date string "YYYY-MM-DD", comparison is direct if we use consistent format.
+        // If it's ISO, we convert to local date string.
+        const sDate = new Date(session.session_date);
+        const sDateStr = sDate.toLocaleDateString("en-CA");
+        return sDateStr === todayStr;
+      }).reduce((sum, session) => sum + session.pages_read, 0) || 0;
       const stats = {
-        totalBooksRead: totalBooksRead,
-        totalPagesRead: pagesRead?.reduce((sum, session) => sum + session.pages_read, 0) || 0,
-        totalReadingTime: readingTime?.reduce((sum, session) => sum + session.session_duration, 0) || 0,
+        totalBooksRead,
+        totalPagesRead,
+        totalReadingTime,
+        pagesReadToday,
       };
 
       return { data: stats, error: null };
     } catch (error) {
+      console.error("Error getting reading stats:", error);
       return { data: null, error };
     }
   }

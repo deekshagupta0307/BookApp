@@ -1,6 +1,6 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router"; // import router
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -58,20 +58,10 @@ export default function HomePage() {
         setFinishedBooks(categorizedData.read);
       }
 
-      // Fetch pages read today
-      const { data: sessionsData, error: sessionsError } = await BookService.getUserReadingSessions(
-        user.id
-      );
-      if (!sessionsError && sessionsData) {
-        const todayDate = new Date();
-        const todayStr = todayDate.toISOString().split("T")[0];
-        const todayPages = sessionsData
-          .filter((session) => {
-            const sessionDate = new Date(session.session_date).toISOString().split("T")[0];
-            return sessionDate === todayStr;
-          })
-          .reduce((sum, session) => sum + session.pages_read, 0);
-        setPagesReadToday(todayPages);
+      // Fetch reading stats (includes pages read today)
+      const { data: stats, error: statsError } = await BookService.getUserReadingStats(user.id);
+      if (!statsError && stats) {
+        setPagesReadToday(stats.pagesReadToday);
       }
 
       const { data: plans } = await ReadingPlanService.getUserReadingPlans(user.id);

@@ -77,10 +77,11 @@ export default function ReadingNow() {
   }, [user?.id, activeTab]);
 
   // Fetch books on mount and when activeTab changes
-  useEffect(() => {
-    fetchBooks();
-  }, [fetchBooks]);
+  // useEffect(() => {
+  //   fetchBooks();
+  // }, [fetchBooks]); 
 
+  
   // Refetch books when screen comes into focus (e.g., after adding a book)
   useFocusEffect(
     useCallback(() => {

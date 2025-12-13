@@ -1,25 +1,39 @@
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import ProgressBar from "./progress-bar";
+import { BookService } from "../../lib/books";
+import { ReadingPlanService } from "../../lib/reading-plans";
+import { supabase } from "../../lib/supabase";
 import { useSignupStore } from "../store/signup-store";
+import { useUserStore } from "../store/user-store";
+import ProgressBar from "./progress-bar";
 
 export default function WeeklyPages() {
   const router = useRouter();
   const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const weeklyPages = useSignupStore((s) => s.weeklyPages);
   const setWeeklyPages = useSignupStore((s) => s.setWeeklyPages);
+
+  // Book details
+  const bookName = useSignupStore((s) => s.bookName);
+  const author = useSignupStore((s) => s.author);
+  const totalPages = useSignupStore((s) => s.totalPages);
+
+  const user = useUserStore((s) => s.user);
+
   const [error, setError] = useState("");
   const [focusedDay, setFocusedDay] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const increment = (day: string) => {
     let num = parseInt(weeklyPages[day]) || 0;
@@ -42,7 +56,7 @@ export default function WeeklyPages() {
     setError("");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const hasAnyValue = Object.values(weeklyPages).some(
       (v) => v && parseInt(v) > 0
     );
@@ -51,7 +65,81 @@ export default function WeeklyPages() {
       return;
     }
     setError("");
-    router.push("/components/success-signup");
+    setLoading(true);
+
+    try {
+      // 1. Get User ID
+      let userId = user?.id;
+      if (!userId) {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser?.id) {
+          userId = currentUser.id;
+        } else {
+          setError("You must be signed in to add a book.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Add Book to Database
+      const { data: book, error: bookError } = await BookService.addBook({
+        title: bookName,
+        author: author,
+        page_count: parseInt(totalPages, 10),
+      });
+
+      if (bookError || !book) {
+        console.error("Error adding book:", bookError);
+        setError("Failed to save book details. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // 3. Link Book to User
+      const { error: linkError } = await BookService.addBookToUser(
+        userId,
+        book.id,
+        "currently_reading"
+      );
+
+      if (linkError) {
+        console.error("Error linking book:", linkError);
+        setError("Failed to add book to your library.");
+        setLoading(false);
+        return;
+      }
+
+      // 4. Prepare Weekly Schedule
+      const schedule: Record<string, number> = {};
+      weekdays.forEach((day) => {
+        const pages = parseInt(weeklyPages[day] || "0", 10);
+        if (pages > 0) {
+          schedule[day] = pages;
+        }
+      });
+
+      // 5. Create Reading Plan (Weekly)
+      const { error: planError } = await ReadingPlanService.createReadingPlan(
+        userId,
+        book.id,
+        "weekly",
+        undefined,
+        schedule
+      );
+
+      if (planError) {
+        console.error("Error creating plan:", planError);
+        // Continue even if plan fails
+      }
+
+      setLoading(false);
+      router.push("/components/success-signup");
+
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      setError("An unexpected error occurred. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -154,8 +242,13 @@ export default function WeeklyPages() {
                 onPress={handleSubmit}
                 className="w-14 h-14 rounded-full items-center justify-center"
                 style={{ backgroundColor: "#722F37" }}
+                disabled={loading}
               >
-                <Text className="text-2xl text-white font-extrabold">✔</Text>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text className="text-2xl text-white font-extrabold">✔</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>

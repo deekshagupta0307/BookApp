@@ -27,24 +27,30 @@ export default function ResetPassword() {
 
   // Establish Supabase session from deep link tokens (if provided)
   useEffect(() => {
-    const maybeSetSessionFromLink = async () => {
-      // Supabase recovery links include access_token and refresh_token
-      const accessToken =
-        (params.access_token as string) || (params.accessToken as string);
-      const refreshToken =
-        (params.refresh_token as string) || (params.refreshToken as string);
+    const handleSession = async () => {
+      try {
+        // Supabase recovery links include access_token and refresh_token
+        const accessToken =
+          (params.access_token as string) || (params.accessToken as string);
+        const refreshToken =
+          (params.refresh_token as string) || (params.refreshToken as string);
 
-      if (accessToken && refreshToken) {
-        await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            Alert.alert("Error", "Check your link - it may have expired.");
+          }
+        }
+      } catch (e) {
+        Alert.alert("Error", "Failed to set session from link.");
       }
     };
 
-    // Fire and forget
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    maybeSetSessionFromLink();
+    handleSession();
   }, [params]);
 
   const validatePassword = (password: string) => {

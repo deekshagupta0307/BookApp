@@ -324,37 +324,31 @@ export class BookService {
 
       const totalBooksRead = categorized?.read.length || 0;
 
-      // Get all reading sessions
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('reading_sessions')
-        .select('*') // Select all fields to get dates
-        .eq('user_id', userId);
+      // Calculate total pages read from book progress
+      // We sum up pages from all books since reading_sessions is not reliably populated
+      let totalPagesRead = 0;
 
-      if (sessionsError) throw sessionsError;
+      if (categorized) {
+        // For read books, assume full book is read (use page_count)
+        categorized.read.forEach(ub => {
+          totalPagesRead += (ub.book?.page_count || ub.progress || 0);
+        });
 
-      // Calculate total pages read
-      const totalPagesRead = sessions?.reduce((sum, session) => sum + session.pages_read, 0) || 0;
-      // Calculate total reading time
-      const totalReadingTime = sessions?.reduce((sum, session) => sum + session.session_duration, 0) || 0;
+        // For currently reading, use progress
+        categorized.currentlyReading.forEach(ub => {
+          totalPagesRead += (ub.progress || 0);
+        });
 
-      // Calculate pages read today
-      // Use local date string comparison for "Today"
-      const todayDate = new Date();
-      const todayStr = todayDate.toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+        // For want to read (rarely has progress, but just in case)
+        categorized.wantToRead.forEach(ub => {
+          totalPagesRead += (ub.progress || 0);
+        });
+      }
 
-      const pagesReadToday = sessions?.filter((session) => {
-        // Assume session_date is stored as YYYY-MM-DD or ISO string. 
-        // If ISO (UTC), we need to be careful. 
-        // Usually session_date from app is just the date part string or full ISO.
-        // Let's safe parse it.
-        if (!session.session_date) return false;
+      // Note: Without reading_sessions, we cannot calculate exact "read today" or duration history.
+      const totalReadingTime = 0;
+      const pagesReadToday = 0;
 
-        // If session_date is a simple date string "YYYY-MM-DD", comparison is direct if we use consistent format.
-        // If it's ISO, we convert to local date string.
-        const sDate = new Date(session.session_date);
-        const sDateStr = sDate.toLocaleDateString("en-CA");
-        return sDateStr === todayStr;
-      }).reduce((sum, session) => sum + session.pages_read, 0) || 0;
       const stats = {
         totalBooksRead,
         totalPagesRead,

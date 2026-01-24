@@ -3,6 +3,10 @@
 # dependencies
 node_modules/
 
+#secrets
+.env
+.env.local
+
 # Expo
 .expo/
 dist/
@@ -17,6 +21,11 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+
+# Backend / DB
+database/
+*.sql
+
 
 # Metro
 .metro-health-check*

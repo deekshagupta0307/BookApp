@@ -1,4 +1,4 @@
-import { ReadingPlanService } from './reading-plans';
+import { ReadingPlan, ReadingPlanService } from './reading-plans';
 import { supabase } from './supabase';
 
 export const BookStatus = {
@@ -149,6 +149,21 @@ export class BookService {
   // Update user book status
   static async updateUserBook(userBookId: string, updates: Partial<UserBook>): Promise<{ data: UserBook | null; error: any }> {
     try {
+      // Get the current user book to calculate pages read difference
+      const { data: currentBook, error: fetchError } = await supabase
+        .from('user_books')
+        .select(`
+          *,
+          book:books(*)
+        `)
+        .eq('id', userBookId)
+        .single();
+
+      if (fetchError || !currentBook) {
+        return { data: null, error: fetchError };
+      }
+
+      // Update the user book
       const { data, error } = await supabase
         .from('user_books')
         .update(updates)
@@ -159,7 +174,35 @@ export class BookService {
         `)
         .single();
 
-      return { data, error };
+      if (error) {
+        return { data: null, error };
+      }
+
+      // Track reading session if progress changed and increased
+      if (updates.progress !== undefined && updates.progress !== null && data) {
+        const oldProgress = currentBook.progress || 0;
+        const newProgress = updates.progress;
+        
+        // Only track if progress increased
+        if (newProgress > oldProgress && data.book?.page_count) {
+          // Calculate pages read: progress is 0-100, so convert to actual pages
+          const oldPages = Math.round((oldProgress / 100) * data.book.page_count);
+          const newPages = Math.round((newProgress / 100) * data.book.page_count);
+          const pagesRead = newPages - oldPages;
+
+          if (pagesRead > 0) {
+            // Add reading session for today
+            await this.addReadingSession(
+              data.user_id,
+              data.book_id,
+              pagesRead,
+              0 // Duration not tracked in this update flow
+            );
+          }
+        }
+      }
+
+      return { data, error: null };
     } catch (error) {
       return { data: null, error };
     }
@@ -180,8 +223,11 @@ export class BookService {
   }
 
   // Add reading session
-  static async addReadingSession(userId: string, bookId: string, pagesRead: number, sessionDuration: number): Promise<{ data: ReadingSession | null; error: any }> {
+  static async addReadingSession(userId: string, bookId: string, pagesRead: number, sessionDuration: number = 0, sessionDate?: string): Promise<{ data: ReadingSession | null; error: any }> {
     try {
+      // Use provided date or default to today
+      const dateToUse = sessionDate || new Date().toISOString().split('T')[0];
+      
       const { data, error } = await supabase
         .from('reading_sessions')
         .insert({
@@ -189,6 +235,7 @@ export class BookService {
           book_id: bookId,
           pages_read: pagesRead,
           session_duration: sessionDuration,
+          session_date: dateToUse,
         })
         .select()
         .single();
@@ -196,6 +243,70 @@ export class BookService {
       return { data, error };
     } catch (error) {
       return { data: null, error };
+    }
+  }
+
+  // Sync reading sessions with reading plan for today
+  // This creates a reading session if the user has read pages according to their plan
+  static async syncReadingSessionForToday(userId: string, bookId: string, userBook: UserBook): Promise<{ error: any }> {
+    try {
+      // Get the reading plan for this book
+      const { data: plan } = await ReadingPlanService.getActivePlanForBook(userId, bookId);
+      if (!plan) {
+        return { error: null }; // No plan, nothing to sync
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+
+      // Check if a reading session already exists for today
+      const { data: existingSessions } = await supabase
+        .from('reading_sessions')
+        .select('id, pages_read')
+        .eq('user_id', userId)
+        .eq('book_id', bookId)
+        .eq('session_date', todayStr);
+      
+      const existingSession = existingSessions && existingSessions.length > 0 ? existingSessions[0] : null;
+
+      // Calculate expected pages for today based on plan
+      let expectedPagesToday = 0;
+      const startDate = userBook.started_at
+        ? new Date(userBook.started_at)
+        : new Date(plan.created_at);
+      startDate.setHours(0, 0, 0, 0);
+
+      if (plan.plan_type === 'everyday' && plan.pages_per_day) {
+        // For everyday plans, check if today is after start date
+        if (today >= startDate) {
+          expectedPagesToday = plan.pages_per_day;
+        }
+      } else if (plan.plan_type === 'weekly' && plan.weekly_schedule) {
+        // For weekly plans, get pages for today's day of week
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const todayName = dayNames[today.getDay()];
+        expectedPagesToday = plan.weekly_schedule[todayName] || 0;
+      }
+
+      // If we have expected pages and no session exists, or if existing session has fewer pages
+      if (expectedPagesToday > 0) {
+        if (!existingSession) {
+          // Create a new reading session for today
+          await this.addReadingSession(userId, bookId, expectedPagesToday, 0, todayStr);
+        } else if (existingSession.pages_read < expectedPagesToday) {
+          // Update existing session if it has fewer pages than expected
+          await supabase
+            .from('reading_sessions')
+            .update({ pages_read: expectedPagesToday })
+            .eq('id', existingSession.id);
+        }
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Error syncing reading session:', error);
+      return { error };
     }
   }
 
@@ -322,6 +433,16 @@ export class BookService {
       const { data: categorized, error: catError } = await this.getCategorizedUserBooks(userId);
       if (catError) throw catError;
 
+      // Sync reading sessions for currently reading books based on their plans
+      // This ensures reading sessions exist for today based on the reading plan
+      if (categorized?.currentlyReading) {
+        for (const userBook of categorized.currentlyReading) {
+          if (userBook.book_id) {
+            await this.syncReadingSessionForToday(userId, userBook.book_id, userBook);
+          }
+        }
+      }
+
       const totalBooksRead = categorized?.read.length || 0;
 
       // Calculate total pages read from book progress
@@ -345,9 +466,32 @@ export class BookService {
         });
       }
 
-      // Note: Without reading_sessions, we cannot calculate exact "read today" or duration history.
-      const totalReadingTime = 0;
-      const pagesReadToday = 0;
+      // Calculate pages read today from reading_sessions
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+
+      const { data: todaySessions, error: sessionsError } = await supabase
+        .from('reading_sessions')
+        .select('pages_read')
+        .eq('user_id', userId)
+        .eq('session_date', todayStr);
+
+      let pagesReadToday = 0;
+      if (!sessionsError && todaySessions) {
+        pagesReadToday = todaySessions.reduce((sum, session) => sum + (session.pages_read || 0), 0);
+      }
+
+      // Calculate total reading time from all sessions
+      const { data: allSessions, error: allSessionsError } = await supabase
+        .from('reading_sessions')
+        .select('session_duration')
+        .eq('user_id', userId);
+
+      let totalReadingTime = 0;
+      if (!allSessionsError && allSessions) {
+        totalReadingTime = allSessions.reduce((sum, session) => sum + (session.session_duration || 0), 0);
+      }
 
       const stats = {
         totalBooksRead,
